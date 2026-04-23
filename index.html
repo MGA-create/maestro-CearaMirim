@@ -1,42 +1,262 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Maestro - SMEB</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" href="icone.png">
-    <link rel="apple-touch-icon" href="icone.png">
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0A3D6B">
-
-    <style>
-        /* Remove qualquer margem branca e oculta as barras de scroll da capa */
-        body, html { 
-            margin: 0; 
-            padding: 0; 
-            width: 100vw; 
-            height: 100vh; 
-            overflow: hidden; 
-            background-color: #F8F9FA; 
-        }
-        /* O Iframe ocupa 100% da tela e engole o seu sistema do Apps Script */
-        iframe { 
-            width: 100%; 
-            height: 100%; 
-            border: none; 
-            display: block;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <title>Portal Maestro</title>
+  <meta id="meta-theme-color" name="theme-color" content="#0A3D6B">
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Maestro">
+  
+  <link id="dynamic-manifest" rel="manifest" href="manifest.json">
+  <link id="apple-touch-icon" rel="apple-touch-icon" href="icone.png">
+  
+  <link rel="stylesheet" href="style.css?v=10.0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body>
-    <iframe 
-        src="https://script.google.com/macros/s/AKfycbyV2j9E35JsbUMUSEYG2TSqJi8kRcSDw404qjVvJTejMsp3yrRFEQCmJW_nV75oBU6J/exec" 
-        allow="camera *; microphone *; display-capture *; fullscreen *" 
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals">
-    </iframe>
+
+  <div class="app-wrapper">
+    <header class="app-header" id="global-header">
+      <img id="ui-logo" src="icone.png" alt="Logo" class="hidden">
+      <h1 id="ui-nome-sistema" class="brand-title">PORTAL MAESTRO</h1>
+      <p id="ui-nome-setor" class="brand-subtitle">A sincronizar sistema...</p>
+    </header>
+
+    <main class="app-content">
+      
+      <div id="mural-avisos-header" class="section-title hidden">📌 AVISOS DA SEMANA</div>
+      <div id="mural-avisos" class="avisos-container hidden"></div>
+
+      <section id="view-hub" class="view-section active-view">
+        <div class="welcome-text">Selecione o seu perfil de acesso</div>
+        
+        <div id="pwa-install-banner" class="banner-pwa hidden" onclick="instalarPWA()">
+          <span class="icon">📲</span>
+          <div class="text">
+            <strong>Instalar Aplicativo</strong>
+            <span>Acesso direto e rápido no telemóvel</span>
+          </div>
+        </div>
+
+        <button class="menu-card primary-card" onclick="switchView('view-aluno-menu')">
+          <span class="icon">🎓</span>
+          <div class="info">
+            <strong>Acesso do Estudante</strong>
+            <span>Carteira Digital e Consulta de Status</span>
+          </div>
+        </button>
+
+        <button class="menu-card dark-card" onclick="switchView('view-login-fiscal')">
+          <span class="icon">🔐</span>
+          <div class="info">
+            <strong>Acesso Restrito</strong>
+            <span>Operadores e Fiscalização da Frota</span>
+          </div>
+        </button>
+      </section>
+
+      <section id="view-aluno-menu" class="view-section">
+        <div class="welcome-text">Área do Estudante</div>
+
+        <button class="menu-card outline-card" onclick="switchView('view-consult')">
+          <span class="icon">🔍</span>
+          <div class="info">
+            <strong>Acompanhar Inscrição</strong>
+            <span>Verifique o status usando o seu CPF</span>
+          </div>
+        </button>
+
+        <button class="menu-card primary-card" onclick="switchView('view-login')">
+          <span class="icon">🪪</span>
+          <div class="info">
+            <strong>Abrir Carteira Digital</strong>
+            <span>Acesso ao cofre digital (Requer ID)</span>
+          </div>
+        </button>
+
+        <button class="btn-text" onclick="switchView('view-hub')">⬅ Voltar ao Início</button>
+      </section>
+
+      <section id="view-consult" class="view-section">
+        <div class="form-card">
+          <div class="form-header">
+            <h2>Situação Cadastral</h2>
+            <p>Acompanhe a emissão da sua identidade</p>
+          </div>
+          <input type="text" id="id-estudante" class="input-field" placeholder="Digite apenas os números do CPF">
+          <button class="btn-solid" id="btn-estudante" onclick="consultarEstudante()">CONSULTAR STATUS</button>
+          <button class="btn-text" onclick="switchView('view-aluno-menu')">Cancelar</button>
+        </div>
+        <div id="res-estudante" class="result-container hidden"></div>
+      </section>
+
+      <section id="view-login" class="view-section">
+        <div class="form-card">
+          <div class="form-header">
+            <span style="font-size: 36px; display: block; margin-bottom: 5px;">🔒</span>
+            <h2>Cofre Digital</h2>
+            <p>Insira as credenciais da sua carteira</p>
+          </div>
+          <label class="input-label">ID DA CARTEIRA</label>
+          <input type="text" id="login-id" class="input-field uppercase" placeholder="Ex: 2026CM...">
+          <label class="input-label">PALAVRA-PASSE</label>
+          <input type="password" id="login-senha" class="input-field" placeholder="Últimos 4 dígitos do CPF" maxlength="4">
+          <button class="btn-solid" id="btn-login" onclick="loginCarteira()">ENTRAR NO COFRE</button>
+          <button class="btn-text" onclick="switchView('view-aluno-menu')">Cancelar</button>
+        </div>
+        <div id="res-login" class="error-box hidden"></div>
+      </section>
+
+      <section id="view-wallet" class="view-section">
+        <div id="wallet-container"></div>
+        <button class="btn-text" style="font-weight: 700; margin-top: 15px;" onclick="sairCarteira()">Sair e Trancar Cofre</button>
+      </section>
+
+      <section id="view-login-fiscal" class="view-section">
+        <div class="form-card dark-form">
+          <div class="form-header">
+            <span style="font-size: 36px; display: block; margin-bottom: 5px;">🛡️</span>
+            <h2>Identificação Operacional</h2>
+            <p>Uso exclusivo da Secretaria e Fiscais</p>
+          </div>
+          <input type="email" id="fiscal-email" class="input-field" placeholder="E-mail de Operador">
+          <input type="password" id="fiscal-senha" class="input-field" placeholder="Palavra-Passe">
+          <button class="btn-solid accent-bg" id="btn-login-fiscal" onclick="fazerLoginOperador()">AUTENTICAR</button>
+          <div id="res-login-fiscal" class="error-box hidden" style="margin-top: 10px;"></div>
+          <button class="btn-text text-light" onclick="switchView('view-hub')">Cancelar</button>
+        </div>
+      </section>
+
+      <section id="view-admin-hub" class="view-section">
+        <div class="welcome-text">
+          Bem-vindo, <span id="nome-operador-logado" style="color: var(--accent); font-weight: 700;">Operador</span>
+        </div>
+
+        <button class="menu-card primary-card" onclick="switchView('view-fiscal')">
+          <span class="icon">🛂</span>
+          <div class="info">
+            <strong>Modo Fiscalização</strong>
+            <span>Validar identidades no autocarro</span>
+          </div>
+        </button>
+
+        <button class="menu-card dark-card" onclick="carregarDashboard()">
+          <span class="icon">📊</span>
+          <div class="info">
+            <strong>Painel Analítico</strong>
+            <span>Estatísticas e consumo da frota</span>
+          </div>
+        </button>
+
+        <button class="btn-text text-danger" style="margin-top: 20px; font-weight: 700;" onclick="encerrarSessaoOperador()">Encerrar Sessão Segura</button>
+      </section>
+
+      <section id="view-fiscal" class="view-section">
+        <div class="form-card dark-form" id="app-fiscal">
+          <div class="form-header">
+            <h2>🛂 VALIDAÇÃO</h2>
+            <p>Aponte a câmara para o QR Code do aluno</p>
+          </div>
+          
+          <button class="btn-solid dark-bg" id="btn-scanner" onclick="iniciarScanner()" style="margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+            <span style="font-size: 20px;">📷</span> LER VÍDEO CONTÍNUO
+          </button>
+          
+          <button class="btn-solid accent-bg" id="btn-scanner-nativo" onclick="document.getElementById('input-qr-file').click()" style="margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 2px solid #fff;">
+            <span style="font-size: 20px;">📱</span> USAR CÂMARA NATIVA
+          </button>
+          <input type="file" id="input-qr-file" accept="image/*" capture="environment" class="hidden" onchange="lerQRCodePorFoto(event)">
+
+          <div id="leitor-qr-container" class="hidden" style="margin-bottom: 15px; border-radius: 8px; overflow: hidden; border: 2px solid var(--accent); background: #000;">
+            <div id="leitor-qr"></div>
+            <button class="btn-solid text-danger" style="border-radius: 0; background: #222;" onclick="fecharScanner()">❌ CANCELAR CÂMARA</button>
+          </div>
+
+          <div class="divider-text">OU DIGITE O ID MANUALMENTE</div>
+
+          <input type="text" id="id-fiscal" class="input-field uppercase text-center" placeholder="ID DA CARTEIRA">
+          <button class="btn-solid accent-bg" id="btn-fiscal" onclick="validarFiscal()">VERIFICAR ESTUDANTE</button>
+          
+          <button class="btn-text text-light" style="margin-top: 15px;" onclick="fecharModoFiscalizacao()">Voltar ao Menu</button>
+        </div>
+        
+        <div id="res-fiscal" class="result-container"></div>
+      </section>
+
+      <section id="view-dashboard" class="view-section">
+        <div class="form-card dark-form" style="padding: 15px;">
+          <div class="form-header" style="margin-bottom: 20px;">
+            <h2 style="color: var(--primary);">📊 DASHBOARD</h2>
+            <p>Dados oficiais do semestre letivo</p>
+          </div>
+
+          <div class="dash-kpi-grid">
+            <div class="dash-kpi"><strong id="kpi-ativos" style="color: #10B981;">-</strong><span>ATIVOS</span></div>
+            <div class="dash-kpi"><strong id="kpi-pendentes" style="color: #FBBF24;">-</strong><span>NA FILA</span></div>
+            <div class="dash-kpi"><strong id="kpi-retidos" style="color: #F97316;">-</strong><span>ATENÇÃO</span></div>
+            <div class="dash-kpi"><strong id="kpi-suspensos" style="color: #EF4444;">-</strong><span>INATIVOS</span></div>
+          </div>
+
+          <div class="dash-box">
+            <h3>Status Global</h3>
+            <div class="chart-wrapper"><canvas id="chart-status"></canvas></div>
+          </div>
+
+          <div class="dash-box">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">
+              <span>Motor Gemini IA (Uso Diário)</span>
+              <strong id="kpi-ia-text" style="color: var(--accent);">- / -</strong>
+            </div>
+            <div class="progress-track"><div id="bar-ia-usage" class="progress-fill" style="width: 0%;"></div></div>
+          </div>
+
+          <div class="dash-tabs">
+            <button class="dash-tab active" id="tab-logistica" onclick="mudarAbaDashboard('logistica')">Logística</button>
+            <button class="dash-tab" id="tab-noturno" onclick="mudarAbaDashboard('noturno')">Rotas 23h</button>
+            <button class="dash-tab" id="tab-inclusao" onclick="mudarAbaDashboard('inclusao')">Inclusão</button>
+          </div>
+
+          <div id="dash-area-logistica">
+            <div class="dash-box"><h3>Instituições Top 5</h3><div class="chart-wrapper"><canvas id="chart-instituicoes"></canvas></div></div>
+            <div class="dash-box"><h3>Dias de Utilização</h3><div class="chart-wrapper"><canvas id="chart-dias"></canvas></div></div>
+            <div class="dash-box"><h3>Turnos</h3><div class="chart-wrapper"><canvas id="chart-turnos"></canvas></div></div>
+            <div class="dash-box"><h3>Rotas Ativas</h3><div class="chart-wrapper"><canvas id="chart-rotas"></canvas></div></div>
+          </div>
+
+          <div id="dash-area-noturno" class="hidden">
+            <div class="dash-box"><h3>Adesão Rota da Madrugada</h3><div class="chart-wrapper"><canvas id="chart-adesao-23h"></canvas></div></div>
+            <div class="dash-box"><h3>Bairros de Desembarque</h3><div class="chart-wrapper" style="height: 300px;"><canvas id="chart-bairros-23h"></canvas></div></div>
+          </div>
+
+          <div id="dash-area-inclusao" class="hidden">
+            <div class="dash-box"><h3>Estagiários</h3><div class="chart-wrapper"><canvas id="chart-estagio"></canvas></div></div>
+            <div class="dash-box"><h3>Acessibilidade (PCD)</h3><div class="chart-wrapper"><canvas id="chart-pcd"></canvas></div></div>
+            <div class="dash-box"><h3>Menores de Idade</h3><div class="chart-wrapper"><canvas id="chart-menor"></canvas></div></div>
+            <div class="dash-box"><h3>Acompanhados (Filhos)</h3><div class="chart-wrapper"><canvas id="chart-acompanhado"></canvas></div></div>
+          </div>
+
+          <button class="btn-solid dark-bg" style="margin-top: 15px;" onclick="switchView('view-admin-hub')">Voltar ao Menu</button>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="app-footer">
+      <p id="ui-endereco" class="hidden"></p> 
+      <p id="ui-email" class="hidden"></p> 
+      <p id="ui-cnpj" class="hidden"></p> 
+      <div class="watermark">⚡ POWERED BY MAESTRO V10</div>
+    </footer>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="js_global.js?v=10.0"></script>
+  <script src="app.js?v=10.0"></script>
 </body>
 </html>
