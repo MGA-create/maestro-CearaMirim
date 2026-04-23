@@ -14,55 +14,29 @@
     <meta name="theme-color" content="#0A3D6B">
 
     <style>
+        /* Remove qualquer margem branca e oculta as barras de scroll da capa */
         body, html { 
-            margin: 0; padding: 0; width: 100vw; height: 100vh; 
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #F8F9FA; display: flex; 
-            flex-direction: column; justify-content: center; align-items: center;
+            margin: 0; 
+            padding: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            overflow: hidden; 
+            background-color: #F8F9FA; 
         }
-        .container {
-            text-align: center; padding: 20px; background: white;
-            border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            width: 80%; max-width: 400px;
+        /* O Iframe ocupa 100% da tela e engole o seu sistema do Apps Script */
+        iframe { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+            display: block;
         }
-        .logo-placeholder {
-            width: 100px; height: 100px; margin: 0 auto 20px auto;
-        }
-        .logo-placeholder img {
-            width: 100%; height: 100%; object-fit: contain;
-        }
-        h1 { margin: 0 0 10px 0; color: #0A3D6B; font-size: 22px; }
-        p { color: #6B7280; font-size: 14px; margin-bottom: 25px; line-height: 1.5; }
-        .btn {
-            display: block; width: 100%; padding: 14px;
-            background-color: #0A3D6B; color: white; text-decoration: none;
-            border-radius: 8px; font-weight: bold; font-size: 16px;
-            border: none; cursor: pointer; transition: background 0.3s;
-            box-sizing: border-box;
-        }
-        .btn:active { background-color: #062847; }
     </style>
 </head>
 <body>
-
-    <div class="container">
-        <div class="logo-placeholder">
-            <img src="icone.png" alt="Logo Maestro">
-        </div>
-        
-        <h1>Portal Maestro</h1>
-        <p>Sistema Integrado de Mobilidade Estudantil. Aceda de forma segura aos servidores da Secretaria.</p>
-        
-        <button class="btn" onclick="acessarSistema()">Aceder ao Portal</button>
-    </div>
-
-    <script>
-        function acessarSistema() {
-            // Este redirecionamento resolve o bloqueio da câmara e de contas Google
-            var urlGoogleScript = "https://script.google.com/macros/s/AKfycbzJdHCjPXFpwVLhXuO0--bJJnkwa0vQDL8dRaGTB5ASCW4tBqk_-MEoZqxS9FSrbo40/exec";
-            window.location.href = urlGoogleScript;
-        }
-    </script>
-
+    <iframe 
+        src="https://script.google.com/macros/s/AKfycbyV2j9E35JsbUMUSEYG2TSqJi8kRcSDw404qjVvJTejMsp3yrRFEQCmJW_nV75oBU6J/exec" 
+        allow="camera *; microphone *; display-capture *; fullscreen *" 
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals">
+    </iframe>
 </body>
 </html>
