@@ -43,7 +43,7 @@
       <section id="view-hub" class="view-section active-view">
         <div class="welcome-text">Selecione o seu perfil de acesso</div>
         
-        <div id="pwa-install-banner" class="banner-pwa hidden" onclick="instalarPWA()">
+        <div id="pwa-install-banner" class="menu-card primary-card" onclick="instalarPWA()">
           <span class="icon">📲</span>
           <div class="text">
             <strong>Instalar Aplicativo</strong>
@@ -83,7 +83,7 @@
           <span class="icon">🪪</span>
           <div class="info">
             <strong>Abrir Carteira Digital</strong>
-            <span>Acesso ao cofre digital (Requer ID)</span>
+            <span>Acessar (Requer ID)</span>
           </div>
         </button>
 
@@ -112,7 +112,7 @@
           </div>
           <label class="input-label">ID DA CARTEIRA</label>
           <input type="text" id="login-id" class="input-field uppercase" placeholder="Ex: 2026CM...">
-          <label class="input-label">PALAVRA-PASSE</label>
+          <label class="input-label">PIN</label>
           <input type="password" id="login-senha" class="input-field" placeholder="Últimos 4 dígitos do CPF" maxlength="4">
           <button class="btn-solid" id="btn-login" onclick="loginCarteira()">ENTRAR NO COFRE</button>
           <button class="btn-text" onclick="switchView('view-aluno-menu')">Cancelar</button>
@@ -122,7 +122,7 @@
 
       <section id="view-wallet" class="view-section">
         <div id="wallet-container"></div>
-        <button class="btn-text" style="font-weight: 700; margin-top: 15px;" onclick="sairCarteira()">Sair e Trancar Cofre</button>
+        <button class="btn-text" style="font-weight: 700; margin-top: 15px;" onclick="sairCarteira()">Sair</button>
       </section>
 
       <section id="view-login-fiscal" class="view-section">
@@ -132,8 +132,8 @@
             <h2>Identificação Operacional</h2>
             <p>Uso exclusivo da Secretaria e Fiscais</p>
           </div>
-          <input type="email" id="fiscal-email" class="input-field" placeholder="E-mail de Operador">
-          <input type="password" id="fiscal-senha" class="input-field" placeholder="Palavra-Passe">
+          <input type="email" id="fiscal-email" class="input-field" placeholder="Login">
+          <input type="password" id="fiscal-senha" class="input-field" placeholder="Senha">
           <button class="btn-solid accent-bg" id="btn-login-fiscal" onclick="fazerLoginOperador()">AUTENTICAR</button>
           <div id="res-login-fiscal" class="error-box hidden" style="margin-top: 10px;"></div>
           <button class="btn-text text-light" onclick="switchView('view-hub')">Cancelar</button>
@@ -149,7 +149,7 @@
           <span class="icon">🛂</span>
           <div class="info">
             <strong>Modo Fiscalização</strong>
-            <span>Validar identidades no autocarro</span>
+            <span>Validar identidades</span>
           </div>
         </button>
 
@@ -157,11 +157,11 @@
           <span class="icon">📊</span>
           <div class="info">
             <strong>Painel Analítico</strong>
-            <span>Estatísticas e consumo da frota</span>
+            <span>Estatísticas</span>
           </div>
         </button>
 
-        <button class="btn-text text-danger" style="margin-top: 20px; font-weight: 700;" onclick="encerrarSessaoOperador()">Encerrar Sessão Segura</button>
+        <button class="btn-text text-danger" style="margin-top: 20px; font-weight: 700;" onclick="encerrarSessaoOperador()">Encerrar Sessão</button>
       </section>
 
       <section id="view-fiscal" class="view-section">
@@ -258,7 +258,7 @@
       <p id="ui-endereco" class="hidden"></p> 
       <p id="ui-email" class="hidden"></p> 
       <p id="ui-cnpj" class="hidden"></p> 
-      <div class="watermark">⚡ POWERED BY MAESTRO V11</div>
+      <div class="watermark">⚡ POWERED BY MAESTRO</div>
     </footer>
   </div>
 
