@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwkzDQlBa0LzcQoxrUUXVcYDFDZ-ggOdu54aNmupaAu3oYJDmdJJK-U6BGKphkZRIwj/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzdu4-nIaAj_j05kXd4YlPccPnv4T27sk8TXQqVZaZ6CbuzizH2IW8Ia8cCP-fKWuU/exec";
 
 async function apiCall(action, payload = {}) {
   const token = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -379,12 +379,13 @@ function renderizarTimelineEstudante(dados, container) {
   const sDocs = String(dados.statusDocs || "").trim().toUpperCase();
   const sAtiv = String(dados.statusAtividade || "").trim().toUpperCase();
 
+  // V8.5 Fix: Cores Semânticas Forçadas
   if (sAtiv === "CANCELADO") {
     html += `<div class="timeline-item active-red"><strong style="color:var(--danger);">2. Emissão Interrompida</strong></div>`;
     html += `<div class="timeline-item active-red"><strong style="color:var(--danger);">3. Inscrição Cancelada</strong><br><span style="color:var(--danger); font-size:11px; font-weight:600;">O acesso ao transporte foi cancelado.</span></div>`;
   } else if (sAtiv === "SUSPENSO") {
-    html += `<div class="timeline-item active-orange"><strong style="color:var(--accent);">2. Emissão Interrompida</strong></div>`;
-    html += `<div class="timeline-item active-orange"><strong style="color:var(--accent);">3. Inscrição Suspensa</strong><br><span style="color:var(--accent); font-size:11px; font-weight:600;">O acesso foi desativado temporariamente.</span></div>`;
+    html += `<div class="timeline-item active-orange"><strong style="color:#F97316;">2. Emissão Interrompida</strong></div>`;
+    html += `<div class="timeline-item active-orange"><strong style="color:#F97316;">3. Inscrição Suspensa</strong><br><span style="color:#F97316; font-size:11px; font-weight:600;">O acesso foi desativado temporariamente.</span></div>`;
   } else {
     if (sOCR === "PENDENTE" || sOCR === "") {
       html += `<div class="timeline-item"><strong>2. Em Auditoria</strong><br><span style="color:var(--text-sub); font-size:11px;">A aguardar análise documental.</span></div>`;
@@ -429,7 +430,7 @@ function mostrarErroEstudante(titulo, mensagem) {
 // ========================================================================
 let currentWalletId = "";
 let currentWalletSenha = "";
-let clockInterval = null; // V8.5: Restaurado a variável do relógio
+let clockInterval = null; 
 
 async function loginCarteira() {
   const id = document.getElementById('login-id').value.trim();
@@ -507,11 +508,9 @@ function renderizarCarteira(dados) {
   </div>`;
   
   container.innerHTML = html;
-  // V8.5: Função de Relógio Restaurada
   iniciarRelogioAntiPrint('wallet-clock');
 }
 
-// V8.5: A Lógica Completa do Relógio Restaurada
 function iniciarRelogioAntiPrint(elementId) {
   if (clockInterval) clearInterval(clockInterval);
   const clockDiv = document.getElementById(elementId);
@@ -696,7 +695,7 @@ function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal) {
     } else if (statusReal === "CANCELADO") {
       statusBadge = `<div style="background:var(--danger); color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">❌ CANCELADO</div>`;
     } else if (statusReal === "SUSPENSO") {
-      statusBadge = `<div style="background:var(--accent); color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⚠️ SUSPENSO</div>`;
+      statusBadge = `<div style="background:#F97316; color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⚠️ SUSPENSO</div>`;
     } else {
       statusBadge = `<div style="background:#FBBF24; color:#333; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⏳ PENDENTE</div>`;
     }
