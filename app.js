@@ -1,9 +1,9 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V10 (HEADLESS REST)
+// 0. CONFIGURAÇÕES DA API V8.5 (HEADLESS REST)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwa_-9flq7RL0PRrZWh4lnbX01jKDzCSpflWsTDpPU1jlRtp11F2yM4FzS2K4xwKncJ/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwkzDQlBa0LzcQoxrUUXVcYDFDZ-ggOdu54aNmupaAu3oYJDmdJJK-U6BGKphkZRIwj/exec";
 
 async function apiCall(action, payload = {}) {
   const token = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -41,8 +41,6 @@ async function apiCall(action, payload = {}) {
 let deferredPrompt; 
 
 async function bootSystem() {
-  showToast("A sincronizar com a Secretaria...", "info");
-  
   try {
     const res = await apiCall("getConfiguracoesPWA");
     
@@ -82,8 +80,19 @@ async function bootSystem() {
     console.warn("A arrancar em modo offline persistente.");
   }
   
+  // Tudo pintado e formatado? Levanta-se a cortina.
+  ocultarSplashScreen();
+  
   carregarAvisosSMEB(); 
   verificarSessaoAtiva();
+}
+
+function ocultarSplashScreen() {
+  const splash = document.getElementById('splash-screen');
+  if (splash) {
+    splash.style.opacity = '0';
+    setTimeout(() => { splash.style.display = 'none'; }, 500);
+  }
 }
 
 function initPWA() {
@@ -112,7 +121,7 @@ function initPWA() {
     `;
     const swBlob = new Blob([swCode], { type: 'application/javascript' });
     navigator.serviceWorker.register(URL.createObjectURL(swBlob))
-      .then(reg => console.log('Service Worker V10 Registado'))
+      .then(reg => console.log('Service Worker V8.5 Registado'))
       .catch(err => console.log('Erro no SW:', err));
   }
 
@@ -211,6 +220,7 @@ async function carregarAvisosSMEB() {
 // ========================================================================
 const TOKEN_KEY = "MAESTRO_OP_TOKEN";
 const CACHE_LISTA_KEY = "MAESTRO_CACHE_FISCAL"; 
+const CACHE_STATS_KEY = "MAESTRO_DASH_STATS";
 let timeoutSessaoID = null;
 
 async function fazerLoginOperador() {
@@ -242,6 +252,11 @@ async function fazerLoginOperador() {
 
     localStorage.setItem(TOKEN_KEY, resAuth.token);
     document.getElementById('nome-operador-logado').innerText = resAuth.nome;
+    
+    // V8.5: Dashboard embutido no pacote de login (Zero segundos loading)
+    if (resAuth.stats) {
+      localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(resAuth.stats));
+    }
     
     btn.innerText = "A BAIXAR DADOS...";
 
@@ -298,6 +313,7 @@ async function encerrarSessaoOperador(silencioso = false) {
   
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(CACHE_LISTA_KEY);
+  localStorage.removeItem(CACHE_STATS_KEY);
   if (timeoutSessaoID) clearTimeout(timeoutSessaoID);
   fecharScanner();
   
@@ -534,7 +550,7 @@ function sairCarteira() {
 }
 
 // ========================================================================
-// 6. MODO FISCAL - OMNI-SCANNER E LAZY LOADING (V10 HEADLESS)
+// 6. MODO FISCAL - OMNI-SCANNER & BUSCA INTELIGENTE (V8.5)
 // ========================================================================
 let html5QrcodeScanner = null;
 
@@ -611,6 +627,7 @@ async function validarFiscal() {
   btn.innerText = "A VERIFICAR...";
   resBox.innerHTML = "";
 
+  // 1. Tenta encontrar na Cache Offline
   let alunoBase = null;
   const cacheListRaw = localStorage.getItem(CACHE_LISTA_KEY);
   if (cacheListRaw) {
@@ -618,18 +635,22 @@ async function validarFiscal() {
     alunoBase = cacheList.find(a => a.id === idCarteira);
   }
 
-  if (!alunoBase) {
-     btn.innerText = "VERIFICAR ESTUDANTE";
-     resBox.innerHTML = `<div class="error-box">❌ ID INVÁLIDO OU NÃO ENCONTRADO</div>`;
-     return;
+  // 2. Comportamento V8.5: Se não estiver no cache, NÃO bloqueia. Avisa e vai à API.
+  if (alunoBase) {
+     resBox.innerHTML = gerarHtmlFiscal(alunoBase.nome, "A carregar...", "...", "...", `<div class="wallet-photo skeleton-box"></div>`, alunoBase.status);
+  } else {
+     resBox.innerHTML = `<div class="text-center text-light" style="margin-top: 20px;">A pesquisar na base de dados online... ⏳</div>`;
   }
 
-  resBox.innerHTML = gerarHtmlFiscal(alunoBase.nome, "A carregar...", "...", "...", `<div class="wallet-photo skeleton-box"></div>`, alunoBase.status);
-
+  // 3. Chamada à API (A Ponte para a Verdade)
   try {
     const res = await apiCall("consultarEstudantePorId", { idEstudante: idCarteira });
     btn.innerText = "VERIFICAR ESTUDANTE";
-    if (!res.encontrado) return; 
+    
+    if (!res.encontrado) {
+       resBox.innerHTML = `<div class="error-box">❌ ID INVÁLIDO OU NÃO ENCONTRADO</div>`;
+       return; 
+    }
     
     resBox.innerHTML = gerarHtmlFiscal(res.nome, res.instituicao, res.rota, res.turno, `<div class="wallet-photo skeleton-box"></div>`, res.statusAtividade);
     
@@ -641,7 +662,7 @@ async function validarFiscal() {
 
   } catch(err) {
     btn.innerText = "VERIFICAR ESTUDANTE";
-    showToast("Erro na API.", "error");
+    showToast("Erro de conexão com o servidor.", "error");
   }
 }
 
@@ -677,7 +698,7 @@ function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal) {
 }
 
 // ========================================================================
-// 7. MOTOR DO DASHBOARD ANALÍTICO
+// 7. MOTOR DO DASHBOARD ANALÍTICO (V8.5 - ZERO SECONDS CACHE)
 // ========================================================================
 let myCharts = {}; 
 
@@ -691,34 +712,49 @@ function mudarAbaDashboard(aba) {
 }
 
 async function carregarDashboard() {
-  showToast("A extrair dados...", "info");
+  const cachedStatsRaw = localStorage.getItem(CACHE_STATS_KEY);
   
-  try {
-    const res = await apiCall("getDashboardStats");
-    
-    if (!res.sucesso) {
-        showToast(res.erro || "Falha ao compilar Dashboard.", "error");
-        return;
-    }
-
-    const stats = res.stats;
-
-    document.getElementById('kpi-ativos').innerText = stats.kpis.ativos;
-    document.getElementById('kpi-pendentes').innerText = stats.kpis.pendentes;
-    document.getElementById('kpi-retidos').innerText = stats.kpis.retidos;
-    document.getElementById('kpi-suspensos').innerText = stats.kpis.suspensos;
-
-    const pctIA = Math.round((stats.consumo.iaUsado / stats.consumo.iaLimite) * 100);
-    const barraIA = document.getElementById('bar-ia-usage');
-    document.getElementById('kpi-ia-text').innerText = `${stats.consumo.iaUsado} / ${stats.consumo.iaLimite}`;
-    barraIA.style.width = Math.min(pctIA, 100) + "%";
-    barraIA.style.background = pctIA > 80 ? "var(--danger)" : "var(--accent)";
-
-    desenharGraficos(stats.graficos);
+  if (cachedStatsRaw) {
+    // 1. Carregamento Instantâneo da Cache (Zero Seconds)
+    renderizarDashboardUI(JSON.parse(cachedStatsRaw));
     switchView('view-dashboard');
-  } catch(err) {
-    showToast("Falha de conexão.", "error");
+    
+    // 2. Atualização em Plano de Fundo (Silenciosa)
+    apiCall("getDashboardStats").then(res => {
+        if (res.sucesso) {
+            localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(res.stats));
+            renderizarDashboardUI(res.stats); 
+        }
+    }).catch(e => console.log("Atualização de dashboard em background falhou."));
+    
+  } else {
+    // Falha da Cache: A extrair dados pela API
+    showToast("A extrair dados do servidor...", "info");
+    try {
+      const res = await apiCall("getDashboardStats");
+      if (!res.sucesso) { showToast(res.erro || "Falha ao compilar Dashboard.", "error"); return; }
+      localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(res.stats));
+      renderizarDashboardUI(res.stats);
+      switchView('view-dashboard');
+    } catch(err) {
+      showToast("Falha de conexão com a base de dados.", "error");
+    }
   }
+}
+
+function renderizarDashboardUI(stats) {
+  document.getElementById('kpi-ativos').innerText = stats.kpis.ativos;
+  document.getElementById('kpi-pendentes').innerText = stats.kpis.pendentes;
+  document.getElementById('kpi-retidos').innerText = stats.kpis.retidos;
+  document.getElementById('kpi-suspensos').innerText = stats.kpis.suspensos;
+
+  const pctIA = Math.round((stats.consumo.iaUsado / stats.consumo.iaLimite) * 100);
+  const barraIA = document.getElementById('bar-ia-usage');
+  document.getElementById('kpi-ia-text').innerText = `${stats.consumo.iaUsado} / ${stats.consumo.iaLimite}`;
+  barraIA.style.width = Math.min(pctIA, 100) + "%";
+  barraIA.style.background = pctIA > 80 ? "var(--danger)" : "var(--accent)";
+
+  desenharGraficos(stats.graficos);
 }
 
 function renderChart(canvasId, type, labels, data, colors, options = {}) {
