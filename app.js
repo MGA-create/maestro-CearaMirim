@@ -15,6 +15,14 @@ async function apiCall(action, payload = {}) {
       body: JSON.stringify({ action: action, payload: payload, token: token })
     });
     
+    // V8.5: Se a Google devolver HTML (Erro de Timeout ou Script quebrado), apanha o erro.
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("text/html") !== -1) {
+       const htmlErro = await response.text();
+       console.error("A Google devolveu HTML em vez de JSON. Possível erro fatal no servidor:", htmlErro);
+       throw new Error("Falha no servidor da Google. Verifique os logs do Apps Script.");
+    }
+
     const data = await response.json();
     
     if (data.status === 401) {
@@ -29,7 +37,7 @@ async function apiCall(action, payload = {}) {
     
     return data;
   } catch (err) {
-    console.error("Falha na API Maestro:", err);
+    console.error("Falha na chamada da API Maestro:", err);
     throw err;
   }
 }
@@ -56,7 +64,9 @@ async function bootSystem() {
 
       if (res.ui.LOGO && res.ui.LOGO !== "") {
         const logoEl = document.getElementById('ui-logo');
+        const splashLogo = document.getElementById('splash-logo');
         if (logoEl) { logoEl.src = res.ui.LOGO; logoEl.classList.remove('hidden'); }
+        if (splashLogo) { splashLogo.src = res.ui.LOGO; splashLogo.classList.remove('hidden'); }
       }
       
       const elNome = document.getElementById('ui-nome-sistema');
@@ -253,7 +263,6 @@ async function fazerLoginOperador() {
     localStorage.setItem(TOKEN_KEY, resAuth.token);
     document.getElementById('nome-operador-logado').innerText = resAuth.nome;
     
-    // V8.5: Dashboard embutido no pacote de login (Zero segundos loading)
     if (resAuth.stats) {
       localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(resAuth.stats));
     }
@@ -420,6 +429,7 @@ function mostrarErroEstudante(titulo, mensagem) {
 // ========================================================================
 let currentWalletId = "";
 let currentWalletSenha = "";
+let clockInterval = null; // V8.5: Restaurado a variável do relógio
 
 async function loginCarteira() {
   const id = document.getElementById('login-id').value.trim();
@@ -456,8 +466,9 @@ async function loginCarteira() {
   } catch(err) {
     btn.innerText = "ENTRAR NO COFRE";
     btn.disabled = false;
-    resBox.innerText = "Erro na API.";
+    resBox.innerText = "Erro na ligação ao servidor. Tente novamente.";
     resBox.classList.remove('hidden');
+    console.error("Falha no Cofre:", err);
   }
 }
 
@@ -496,7 +507,18 @@ function renderizarCarteira(dados) {
   </div>`;
   
   container.innerHTML = html;
+  // V8.5: Função de Relógio Restaurada
   iniciarRelogioAntiPrint('wallet-clock');
+}
+
+// V8.5: A Lógica Completa do Relógio Restaurada
+function iniciarRelogioAntiPrint(elementId) {
+  if (clockInterval) clearInterval(clockInterval);
+  const clockDiv = document.getElementById(elementId);
+  if (!clockDiv) return;
+  const update = () => clockDiv.innerText = `⏳ Autenticado: ${new Date().toLocaleTimeString('pt-BR')}`;
+  update();
+  clockInterval = setInterval(update, 1000);
 }
 
 async function baixarDocumento(tipo, tentativa = 1) {
@@ -627,7 +649,6 @@ async function validarFiscal() {
   btn.innerText = "A VERIFICAR...";
   resBox.innerHTML = "";
 
-  // 1. Tenta encontrar na Cache Offline
   let alunoBase = null;
   const cacheListRaw = localStorage.getItem(CACHE_LISTA_KEY);
   if (cacheListRaw) {
@@ -635,14 +656,12 @@ async function validarFiscal() {
     alunoBase = cacheList.find(a => a.id === idCarteira);
   }
 
-  // 2. Comportamento V8.5: Se não estiver no cache, NÃO bloqueia. Avisa e vai à API.
   if (alunoBase) {
      resBox.innerHTML = gerarHtmlFiscal(alunoBase.nome, "A carregar...", "...", "...", `<div class="wallet-photo skeleton-box"></div>`, alunoBase.status);
   } else {
      resBox.innerHTML = `<div class="text-center text-light" style="margin-top: 20px;">A pesquisar na base de dados online... ⏳</div>`;
   }
 
-  // 3. Chamada à API (A Ponte para a Verdade)
   try {
     const res = await apiCall("consultarEstudantePorId", { idEstudante: idCarteira });
     btn.innerText = "VERIFICAR ESTUDANTE";
@@ -698,7 +717,7 @@ function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal) {
 }
 
 // ========================================================================
-// 7. MOTOR DO DASHBOARD ANALÍTICO (V8.5 - ZERO SECONDS CACHE)
+// 7. MOTOR DO DASHBOARD ANALÍTICO
 // ========================================================================
 let myCharts = {}; 
 
@@ -715,11 +734,9 @@ async function carregarDashboard() {
   const cachedStatsRaw = localStorage.getItem(CACHE_STATS_KEY);
   
   if (cachedStatsRaw) {
-    // 1. Carregamento Instantâneo da Cache (Zero Seconds)
     renderizarDashboardUI(JSON.parse(cachedStatsRaw));
     switchView('view-dashboard');
     
-    // 2. Atualização em Plano de Fundo (Silenciosa)
     apiCall("getDashboardStats").then(res => {
         if (res.sucesso) {
             localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(res.stats));
@@ -728,7 +745,6 @@ async function carregarDashboard() {
     }).catch(e => console.log("Atualização de dashboard em background falhou."));
     
   } else {
-    // Falha da Cache: A extrair dados pela API
     showToast("A extrair dados do servidor...", "info");
     try {
       const res = await apiCall("getDashboardStats");
