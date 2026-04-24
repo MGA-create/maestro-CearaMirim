@@ -58,6 +58,9 @@ async function bootSystem() {
       window.THEME_COLOR = res.ui.COR_PRIMARIA;
       window.BG_COLOR = res.ui.COR_SECUNDARIA;
       
+      // 1. Alterar o título da aba do navegador (Branding White-label)
+      document.title = window.PWA_NOME;
+      
       document.documentElement.style.setProperty('--primary', res.ui.COR_PRIMARIA);
       document.documentElement.style.setProperty('--secondary', res.ui.COR_SECUNDARIA);
       document.documentElement.style.setProperty('--accent', res.ui.COR_DE_DESTAQUE);
@@ -69,11 +72,13 @@ async function bootSystem() {
         if (splashLogo) { splashLogo.src = res.ui.LOGO; splashLogo.classList.remove('hidden'); }
       }
       
+      // 2. O Nome Principal do Sistema (Ex: MAESTRO SMEB)
       const elNome = document.getElementById('ui-nome-sistema');
-      if (elNome) elNome.innerText = res.ui.NOME_SISTEMA;
+      if (elNome) elNome.innerText = window.PWA_NOME.toUpperCase();
       
+      // 3. O Subtítulo do Sistema (Ex: Secretaria Municipal de Educação Básica)
       const elSetor = document.getElementById('ui-nome-setor');
-      if (elSetor) elSetor.innerText = res.ui.NOME_SETOR;
+      if (elSetor) elSetor.innerText = res.ui.NOME_SISTEMA;
 
       const elEnd = document.getElementById('ui-endereco');
       if (elEnd && res.contato.ENDERECO) { elEnd.innerText = res.contato.ENDERECO; elEnd.classList.remove('hidden'); }
