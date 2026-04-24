@@ -14,17 +14,25 @@
   <link id="dynamic-manifest" rel="manifest" href="manifest.json">
   <link id="apple-touch-icon" rel="apple-touch-icon" href="icone.png">
   
-  <link rel="stylesheet" href="style.css?v=10.0">
+  <link rel="stylesheet" href="style.css?v=11.0">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body>
 
+  <div id="splash-screen" class="splash-overlay">
+    <div class="splash-content">
+      <img id="splash-logo" src="icone.png" alt="Carregando..." class="hidden">
+      <div class="loader"></div>
+      <p>A sincronizar portal...</p>
+    </div>
+  </div>
+
   <div class="app-wrapper">
     <header class="app-header" id="global-header">
       <img id="ui-logo" src="icone.png" alt="Logo" class="hidden">
       <h1 id="ui-nome-sistema" class="brand-title">PORTAL MAESTRO</h1>
-      <p id="ui-nome-setor" class="brand-subtitle">A sincronizar sistema...</p>
+      <p id="ui-nome-setor" class="brand-subtitle">Acesso Estudantil</p>
     </header>
 
     <main class="app-content">
@@ -250,13 +258,13 @@
       <p id="ui-endereco" class="hidden"></p> 
       <p id="ui-email" class="hidden"></p> 
       <p id="ui-cnpj" class="hidden"></p> 
-      <div class="watermark">⚡ POWERED BY MAESTRO V10</div>
+      <div class="watermark">⚡ POWERED BY MAESTRO V11</div>
     </footer>
   </div>
 
   <div id="toast"></div>
 
-  <script src="js_global.js?v=10.0"></script>
-  <script src="app.js?v=10.0"></script>
+  <script src="js_global.js?v=11.0"></script>
+  <script src="app.js?v=11.0"></script>
 </body>
 </html>
