@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw4AtsTAaOo5ZDHF9HbyY3C9-snLm2c2vGXP_j06FqaXG2QDvdso9XlqPUDWekMjQI/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwYV2xuvtfKThpD8_pW7KoljnJPNfAEEmrtRzRe2sHCF-YV1S0R5z-F9LX1dA-MMPo/exec";
 
 async function apiCall(action, payload = {}) {
   const token = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -340,7 +340,7 @@ async function encerrarSessaoOperador(silencioso = false) {
 }
 
 // ========================================================================
-// 4. FLUXO DE CONSULTA DO ESTUDANTE (TIMELINE)
+// 4. FLUXO DE CONSULTA DO ESTUDANTE (TIMELINE & TRANSPARÊNCIA)
 // ========================================================================
 async function consultarEstudante() {
   const alvo = document.getElementById('id-estudante').value.trim();
@@ -381,7 +381,6 @@ function irParaCofreComId(idAcesso) {
     }
     
     if (inputSenha) {
-        // Um pequeno delay garante que o ecrã já abriu antes de puxar o teclado do telemóvel
         setTimeout(() => { inputSenha.focus(); }, 100); 
     }
 }
@@ -400,20 +399,47 @@ function renderizarTimelineEstudante(dados, container) {
   const sDocs = String(dados.statusDocs || "").trim().toUpperCase();
   const sAtiv = String(dados.statusAtividade || "").trim().toUpperCase();
 
-  // V8.5 Fix: Cores Semânticas Forçadas
+  // V8.5 Transparência: Função geradora da Caixa de Citação para o aluno ler o parecer
+  const buildObsBox = (obs, colorBorder, colorBg, colorText) => {
+    if (!obs || obs.trim() === "") return "";
+    return `
+      <div style="margin-top: 12px; padding: 12px; background: ${colorBg}; border-left: 4px solid ${colorBorder}; border-radius: 4px; color: ${colorText}; font-size: 12px; line-height: 1.5; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <strong style="display:block; margin-bottom:4px; font-size:11px; text-transform:uppercase; opacity:0.8; letter-spacing: 0.5px;">Mensagem do Setor:</strong>
+        ${obs.replace(/\n/g, '<br>')}
+      </div>
+    `;
+  };
+
+  // Lógica da Timeline com Injeção de Observações
   if (sAtiv === "CANCELADO") {
     html += `<div class="timeline-item active-red"><strong style="color:var(--danger);">2. Emissão Interrompida</strong></div>`;
-    html += `<div class="timeline-item active-red"><strong style="color:var(--danger);">3. Inscrição Cancelada</strong><br><span style="color:var(--danger); font-size:11px; font-weight:600;">O acesso ao transporte foi cancelado.</span></div>`;
+    html += `<div class="timeline-item active-red">
+               <strong style="color:var(--danger);">3. Inscrição Cancelada</strong><br>
+               <span style="color:var(--danger); font-size:11px; font-weight:600;">O acesso ao transporte foi cancelado.</span>
+               ${buildObsBox(dados.obs, "var(--danger)", "#FEF2F2", "#991B1B")}
+             </div>`;
+             
   } else if (sAtiv === "SUSPENSO") {
     html += `<div class="timeline-item active-orange"><strong style="color:#F97316;">2. Emissão Interrompida</strong></div>`;
-    html += `<div class="timeline-item active-orange"><strong style="color:#F97316;">3. Inscrição Suspensa</strong><br><span style="color:#F97316; font-size:11px; font-weight:600;">O acesso foi desativado temporariamente.</span></div>`;
+    html += `<div class="timeline-item active-orange">
+               <strong style="color:#F97316;">3. Inscrição Suspensa</strong><br>
+               <span style="color:#F97316; font-size:11px; font-weight:600;">O acesso foi desativado temporariamente.</span>
+               ${buildObsBox(dados.obs, "#F97316", "#FFF7ED", "#9A3412")}
+             </div>`;
+             
   } else {
     if (sOCR === "PENDENTE" || sOCR === "") {
       html += `<div class="timeline-item"><strong>2. Em Auditoria</strong><br><span style="color:var(--text-sub); font-size:11px;">A aguardar análise documental.</span></div>`;
       html += `<div class="timeline-item"><strong>3. Resultado</strong></div>`;
+      
     } else if (sOCR === "ANALISE_HUMANA" || sOCR === "PENDENCIA") {
-      html += `<div class="timeline-item active-yellow"><strong style="color:#FBBF24;">2. Pendência Documental</strong><br><span style="color:#D97706; font-size:11px; font-weight:600;">Ação necessária para prosseguir.</span></div>`;
+      html += `<div class="timeline-item active-yellow">
+                 <strong style="color:#FBBF24;">2. Pendência Documental</strong><br>
+                 <span style="color:#D97706; font-size:11px; font-weight:600;">Ação necessária para prosseguir.</span>
+                 ${buildObsBox(dados.obs, "#F59E0B", "#FFFBEB", "#92400E")}
+               </div>`;
       html += `<div class="timeline-item"><strong>3. Resultado</strong></div>`;
+      
     } else {
       html += `<div class="timeline-item active-green"><strong style="color:var(--success);">2. Documentos Validados</strong></div>`;
       
