@@ -365,6 +365,22 @@ async function consultarEstudante() {
   }
 }
 
+// V8.5: Função Intercetora de UX - Preenche o ID e foca na Senha automaticamente
+function irParaCofreComId(idAcesso) {
+    switchView('view-login');
+    const inputId = document.getElementById('login-id');
+    const inputSenha = document.getElementById('login-senha');
+    
+    if (inputId && idAcesso) {
+        inputId.value = idAcesso;
+    }
+    
+    if (inputSenha) {
+        // Um pequeno delay garante que o ecrã já abriu antes de puxar o teclado do telemóvel
+        setTimeout(() => { inputSenha.focus(); }, 100); 
+    }
+}
+
 function renderizarTimelineEstudante(dados, container) {
   const nomeLimpo = formatarNome(dados.nome).split(' ')[0];
   let html = `<h3 style="margin:0 0 15px 0; color:var(--primary);">Olá, ${nomeLimpo}!</h3>`;
@@ -405,7 +421,7 @@ function renderizarTimelineEstudante(dados, container) {
              <span style="font-size: 11px; color: var(--success); display:block; margin-bottom:5px; text-transform: uppercase; font-weight:700;">O seu ID de Acesso é:</span>
              <strong style="font-size: 22px; color: #065F46; letter-spacing: 2px; font-family: monospace;">${dados.idAcesso}</strong>
              <p style="font-size: 11px; color: #065F46; margin: 8px 0 0 0;">Use este ID e os 4 últimos dígitos do seu CPF para abrir o cofre digital.</p>
-             <button class="btn-solid" style="margin-top:15px;" onclick="switchView('view-login')">IR PARA O COFRE</button>
+             <button class="btn-solid" style="margin-top:15px;" onclick="irParaCofreComId('${dados.idAcesso}')">IR PARA O COFRE</button>
            </div>`;
         }
       } else {
