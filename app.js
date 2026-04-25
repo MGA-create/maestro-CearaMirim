@@ -278,6 +278,11 @@ async function fazerLoginOperador() {
     if (resCache.sucesso) {
        localStorage.setItem(CACHE_LISTA_KEY, JSON.stringify(resCache.dados));
        
+       // V8.8: O Fiscal guarda a Semente Diária para poder validar os alunos offline
+       if (resCache.sementeDia) {
+           localStorage.setItem("MAESTRO_SEMENTE_FISCAL", resCache.sementeDia);
+       }
+       
        btn.innerText = "AUTENTICAR";
        btn.disabled = false;
        document.getElementById('fiscal-email').value = "";
@@ -328,6 +333,7 @@ async function encerrarSessaoOperador(silencioso = false) {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(CACHE_LISTA_KEY);
   localStorage.removeItem(CACHE_STATS_KEY);
+  localStorage.removeItem("MAESTRO_SEMENTE_FISCAL"); // Limpeza da semente
   if (timeoutSessaoID) clearTimeout(timeoutSessaoID);
   fecharScanner();
   
@@ -675,7 +681,7 @@ function sairCarteira() {
 }
 
 // ========================================================================
-// 6. MODO FISCAL - OMNI-SCANNER & BUSCA INTELIGENTE
+// 6. MODO FISCAL - OMNI-SCANNER & BUSCA INTELIGENTE (V8.8 ANTI-FRAUDE)
 // ========================================================================
 let html5QrcodeScanner = null;
 
@@ -700,13 +706,43 @@ function fecharScanner() {
   document.getElementById('btn-scanner-nativo').classList.remove('hidden'); 
 }
 
+// V8.8: O Motor de Validação Anti-Print Screen
 function aoLerQRCode(textoLido) {
-  let idLimpo = textoLido;
-  let matchId = textoLido.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
-  if (matchId) idLimpo = matchId[1];
-  
-  document.getElementById('id-fiscal').value = idLimpo;
   fecharScanner();
+  
+  // 1. Extração do Payload (ID_ALUNO|SEMENTE_DIA)
+  let idLimpo = textoLido;
+  let sementeLida = null;
+  
+  if (textoLido.indexOf('|') !== -1) {
+     const partes = textoLido.split('|');
+     idLimpo = partes[0];
+     sementeLida = partes[1];
+  } else {
+     // Tratamento de falha nativa (aluno tenta ler link normal)
+     let matchId = textoLido.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+     if (matchId) idLimpo = matchId[1];
+  }
+  
+  // 2. Validação Criptográfica Offline
+  const sementeFiscal = localStorage.getItem("MAESTRO_SEMENTE_FISCAL");
+  
+  // Se o fiscal tem a semente do dia gravada e a lida é diferente (ou não existe)
+  if (sementeFiscal && sementeLida !== sementeFiscal) {
+     document.getElementById('res-fiscal').innerHTML = `
+        <div class="wallet-card dark" style="border-color: var(--danger);">
+           <div class="wallet-header" style="background: var(--danger);">❌ ALERTA DE SEGURANÇA</div>
+           <div class="wallet-body text-center" style="display:block; padding: 30px 20px;">
+              <span style="font-size: 40px; display:block; margin-bottom: 10px;">⚠️</span>
+              <strong style="color: var(--danger); font-size: 16px; display:block;">QR CODE EXPIRADO/INVÁLIDO</strong>
+              <p style="font-size: 12px; color: #ccc; margin-top: 10px;">O código lido não corresponde ao dia de hoje. Peça ao estudante para fechar a App, ligar a internet e abrir novamente a Carteira Digital.</p>
+           </div>
+        </div>`;
+     return;
+  }
+  
+  // 3. Tudo Certo? Busca os dados do aluno.
+  document.getElementById('id-fiscal').value = idLimpo;
   validarFiscal();
 }
 
@@ -721,13 +757,8 @@ function lerQRCodePorFoto(event) {
 
   html5QrCode.scanFile(file, true)
     .then(textoLido => {
-      let idLimpo = textoLido;
-      let matchId = textoLido.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
-      if (matchId) idLimpo = matchId[1];
-      
-      document.getElementById('id-fiscal').value = idLimpo;
       document.getElementById('btn-scanner-nativo').innerHTML = `<span style="font-size: 20px;">📱</span> USAR CÂMARA NATIVA`;
-      validarFiscal();
+      aoLerQRCode(textoLido); // Reaproveita a mesma lógica anti-fraude do scanner contínuo
     })
     .catch(err => {
       showToast("QR Code não detetado.", "error");
