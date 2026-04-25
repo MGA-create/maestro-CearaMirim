@@ -18,6 +18,9 @@
   <link rel="stylesheet" href="style.css?v=11.0">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
 </head>
 <body>
 
@@ -264,6 +267,26 @@
   </div>
 
   <div id="toast"></div>
+
+  <script>
+    // ⚠️ ATENÇÃO: Substitua os valores abaixo com os dados do seu Projeto Firebase
+    const firebaseConfig = {
+      apiKey: "COLE_SUA_API_KEY",
+      authDomain: "COLE_SEU_PROJECT_ID.firebaseapp.com",
+      projectId: "COLE_SEU_PROJECT_ID",
+      storageBucket: "COLE_SEU_PROJECT_ID.appspot.com",
+      messagingSenderId: "COLE_SEU_SENDER_ID",
+      appId: "COLE_SEU_APP_ID"
+    };
+
+    // Inicializa o Firebase (se ainda não estiver inicializado)
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+
+    // ⚠️ ATENÇÃO: Cole aqui a VAPID Key gerada na consola do Firebase (Cloud Messaging > Web Push certs)
+    window.FIREBASE_VAPID_KEY = "COLE_A_SUA_VAPID_KEY_AQUI";
+  </script>
 
   <script src="js_global.js?v=11.0"></script>
   <script src="app.js?v=11.0"></script>
