@@ -1,5 +1,5 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V8.5/V8.7 (HEADLESS REST)
+// 0. CONFIGURAÇÕES DA API V8.5/V8.8 (HEADLESS REST)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
@@ -136,7 +136,7 @@ function initPWA() {
     `;
     const swBlob = new Blob([swCode], { type: 'application/javascript' });
     navigator.serviceWorker.register(URL.createObjectURL(swBlob))
-      .then(reg => console.log('Service Worker V8.5/8.7 Registado'))
+      .then(reg => console.log('Service Worker V8.8 Registado'))
       .catch(err => console.log('Erro no SW:', err));
   }
 
@@ -470,7 +470,7 @@ function mostrarErroEstudante(titulo, mensagem) {
 }
 
 // ========================================================================
-// 5. FLUXO DA CARTEIRA DIGITAL (O COFRE)
+// 5. FLUXO DA CARTEIRA DIGITAL (O COFRE OFFLINE-FIRST V8.8)
 // ========================================================================
 let currentWalletId = "";
 let currentWalletSenha = "";
@@ -503,18 +503,44 @@ async function loginCarteira() {
     } else if (res.sucesso) {
       currentWalletId = id;
       currentWalletSenha = senha;
+      
+      // V8.8: Guarda o cache estrito para modo offline (sem internet)
+      localStorage.setItem("MAESTRO_WALLET_CACHE", JSON.stringify(res));
+      localStorage.setItem("MAESTRO_WALLET_CREDS", JSON.stringify({id: id, senha: senha}));
+
       renderizarCarteira(res);
       switchView('view-wallet');
       document.getElementById('login-id').value = '';
       document.getElementById('login-senha').value = '';
       
-      // V8.7 PUSH: Assim que o aluno entra na carteira, tentamos registar o Push
       setTimeout(inicializarPushNotifications, 2000); 
     }
   } catch(err) {
     btn.innerText = "ENTRAR NO COFRE";
     btn.disabled = false;
-    resBox.innerText = "Erro na ligação ao servidor. Tente novamente.";
+    
+    // V8.8: RESILIÊNCIA OFFLINE. Se o telemóvel não tiver internet, verifica o cache.
+    const cachedData = localStorage.getItem("MAESTRO_WALLET_CACHE");
+    const cachedCreds = localStorage.getItem("MAESTRO_WALLET_CREDS");
+    
+    if (cachedData && cachedCreds) {
+       const creds = JSON.parse(cachedCreds);
+       if (creds.id.toUpperCase() === id.toUpperCase() && creds.senha === senha) {
+          currentWalletId = id;
+          currentWalletSenha = senha;
+          const resCached = JSON.parse(cachedData);
+          
+          showToast("Modo Offline Ativado. A usar dados guardados.", "warning");
+          
+          renderizarCarteira(resCached);
+          switchView('view-wallet');
+          document.getElementById('login-id').value = '';
+          document.getElementById('login-senha').value = '';
+          return;
+       }
+    }
+
+    resBox.innerText = "Falha de ligação. Necessita de internet para o primeiro acesso.";
     resBox.classList.remove('hidden');
     console.error("Falha no Cofre:", err);
   }
@@ -536,6 +562,16 @@ function renderizarCarteira(dados) {
         <div class="w-group"><span>ID da Carteira</span><span style="font-family:monospace; font-size:12px;">${dados.idCarteira}</span></div>
       </div>
     </div>
+    
+    <div class="text-center" style="margin: 15px 0; padding: 15px 0; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border);">
+      <div style="background: white; padding: 10px; border-radius: 8px; display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+         <div id="wallet-qrcode"></div>
+      </div>
+      <div style="font-size: 11px; color: var(--primary); margin-top: 8px; font-weight: 700; letter-spacing: 1px;">
+        VÁLIDO PARA EMBARQUE HOJE
+      </div>
+    </div>
+
     <div class="wallet-footer">
       <div class="w-row">
         <div class="w-group"><span>Instituição</span><span style="font-weight:700;">${dados.instituicao}</span></div>
@@ -556,6 +592,26 @@ function renderizarCarteira(dados) {
   
   container.innerHTML = html;
   iniciarRelogioAntiPrint('wallet-clock');
+
+  // V8.8: Renderização Automática do QR Code (Agnóstico de Rede)
+  const qrContainer = document.getElementById('wallet-qrcode');
+  if (qrContainer) {
+      qrContainer.innerHTML = ""; // Limpa lixo de renderizações antigas
+      
+      // A Semente é enviada pelo backend. Se estiver em modo offline, usa a guardada no cache.
+      // Se não houver semente (backend ainda não atualizado), usa a data local como fallback de transição.
+      const semente = dados.sementeDia || new Date().toISOString().split('T')[0];
+      const payloadQR = `${dados.idCarteira}|${semente}`;
+
+      new QRCode(qrContainer, {
+          text: payloadQR,
+          width: 160,
+          height: 160,
+          colorDark : "#000000",
+          colorLight : "#ffffff", // Fundo branco obrigatório para legibilidade dos lasers
+          correctLevel : QRCode.CorrectLevel.H // Alta correção de erro para ecrãs rachados
+      });
+  }
 }
 
 function iniciarRelogioAntiPrint(elementId) {
@@ -614,6 +670,7 @@ function sairCarteira() {
   document.getElementById('wallet-container').innerHTML = ''; 
   currentWalletId = "";
   currentWalletSenha = "";
+  // Não apagamos o Cache Offline aqui propositadamente. Se o aluno fechar e abrir na paragem, o cache salva-o.
   switchView('view-aluno-menu'); 
 }
 
