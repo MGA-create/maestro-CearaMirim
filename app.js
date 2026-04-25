@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbypSnUnFp8yohusR-y9XXT0dXWyDQUrVV_NwsQkRxu_MpqfDTHXovShqLZdiISyVbB9/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw7WcMEKiklegbXksrPcQmhuXW1ht8uC6-BvdYKGdu7Ccamcya4HJoD0Vp0vp18ETce/exec";
 
 async function apiCall(action, payload = {}) {
   const token = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -511,7 +511,6 @@ async function loginCarteira() {
       document.getElementById('login-id').value = '';
       document.getElementById('login-senha').value = '';
       
-      // V8.8: Inicia sondagem de viagens após o login
       verificarJanelasEmbarque(); 
       setTimeout(inicializarPushNotifications, 2000); 
     }
@@ -662,12 +661,11 @@ async function baixarDocumento(tipo, tentativa = 1) {
 
 function sairCarteira() {
   if (clockInterval) clearInterval(clockInterval);
-  pararTransmissaoGps(); // V8.8: Garante que o GPS para se o aluno fizer logout
+  pararTransmissaoGps(); 
   document.getElementById('wallet-container').innerHTML = ''; 
   currentWalletId = "";
   currentWalletSenha = "";
   
-  // Oculta o painel de mobilidade ao sair
   const painelMob = document.getElementById('view-mobilidade');
   if (painelMob) painelMob.style.display = 'none';
   
@@ -704,7 +702,6 @@ async function verificarJanelasEmbarque() {
        }
 
        if (res.emViagem) {
-           // O aluno já confirmou presença recentemente e o TTL ainda não expirou
            if (containerLista) containerLista.classList.add('hidden');
            if (painelSucesso) painelSucesso.classList.remove('hidden');
            return;
@@ -715,7 +712,6 @@ async function verificarJanelasEmbarque() {
            return;
        }
 
-       // Renderiza as viagens disponíveis
        let html = `<p style="font-size: 11px; color: var(--text-sub); margin-bottom: 10px;">Selecione o seu autocarro para garantir lugar:</p>`;
        res.viagens.forEach(v => {
            const labelLota = v.vagasRestantes > 0 ? `<span style="color:var(--success); font-weight:bold;">${v.vagasRestantes} vagas</span>` : `<span style="color:var(--danger); font-weight:bold;">LOTADO</span>`;
@@ -745,18 +741,16 @@ async function verificarJanelasEmbarque() {
 async function confirmarEmbarque(idOnibus) {
     showToast("A processar lugar...", "loading");
     try {
-        // Envia false primeiro para 'querSerGuia', o toggle aparece depois se tiver sucesso
         const res = await apiCall("realizarCheckInOnibus", { idOnibus: idOnibus, idEstudante: currentWalletId, querSerGuia: false });
         
         if (res.sucesso) {
             showToast("Lugar Confirmado!", "success");
-            onibusSelecionadoGPS = idOnibus; // Guarda o ID na memória local caso ele queira ligar o GPS
+            onibusSelecionadoGPS = idOnibus; 
             
             document.getElementById('lista-viagens-container').classList.add('hidden');
             const painelSucesso = document.getElementById('painel-viagem-ativa');
             if (painelSucesso) painelSucesso.classList.remove('hidden');
             
-            // Garante que o switch do GPS começa desligado
             const toggle = document.getElementById('toggle-guia');
             if (toggle) { toggle.checked = false; toggle.disabled = false; }
             document.getElementById('status-guia-texto').innerText = "Desligado";
@@ -764,7 +758,7 @@ async function confirmarEmbarque(idOnibus) {
             
         } else {
             showToast(res.erro || "Lotação atingida no momento do clique.", "error");
-            verificarJanelasEmbarque(); // Recarrega a lista
+            verificarJanelasEmbarque(); 
         }
     } catch (e) {
         showToast("Erro ao processar reserva.", "error");
@@ -776,10 +770,9 @@ async function toggleGuiaGps(checkbox) {
     const textoStatus = document.getElementById('status-guia-texto');
     
     if (checkbox.checked) {
-        // Tenta ativar
         textoStatus.innerText = "A Iniciar Radar...";
         textoStatus.style.color = "#F59E0B";
-        checkbox.disabled = true; // Impede duplos cliques rápidos
+        checkbox.disabled = true; 
         
         if (!navigator.geolocation) {
             showToast("O seu telemóvel não suporta GPS nativo.", "error");
@@ -789,17 +782,14 @@ async function toggleGuiaGps(checkbox) {
         }
 
         try {
-            // Bloqueia o ecrã para não apagar e matar o processo
             if ('wakeLock' in navigator) {
                 wakeLockAtivo = await navigator.wakeLock.request('screen');
             }
             
-            // Pede permissão e tira a primeira coordenada
             navigator.geolocation.getCurrentPosition(
                 function(pos) {
                     enviarCoordenadaSegura(pos.coords.latitude, pos.coords.longitude);
                     
-                    // Inicia o Loop de 2 em 2 minutos (120000 ms)
                     idIntervaloGPS = setInterval(() => {
                         navigator.geolocation.getCurrentPosition(
                             p => enviarCoordenadaSegura(p.coords.latitude, p.coords.longitude),
@@ -823,7 +813,6 @@ async function toggleGuiaGps(checkbox) {
             pararTransmissaoGps(checkbox);
         }
     } else {
-        // Aluno desligou manualmente
         pararTransmissaoGps(checkbox);
     }
 }
@@ -831,7 +820,6 @@ async function toggleGuiaGps(checkbox) {
 function enviarCoordenadaSegura(lat, lng) {
     if (!onibusSelecionadoGPS || !currentWalletId) return;
     
-    // É uma chamada silenciosa, não queremos chatear o utilizador com Toasts a cada 2 min
     apiCall("atualizarGPSOnibus", { 
         idOnibus: onibusSelecionadoGPS, 
         idEstudante: currentWalletId, 
@@ -839,7 +827,6 @@ function enviarCoordenadaSegura(lat, lng) {
         lng: lng 
     }).then(res => {
         if (res && !res.sucesso) {
-            // Se o servidor disser que a sessão expirou (ou outro assumiu), desliga tudo localmente.
             console.log("Servidor rejeitou o GPS: " + res.erro);
             const toggle = document.getElementById('toggle-guia');
             pararTransmissaoGps(toggle);
@@ -889,11 +876,9 @@ function fecharScanner() {
   document.getElementById('btn-scanner-nativo').classList.remove('hidden'); 
 }
 
-// V8.8: O Motor de Validação Anti-Print Screen
 function aoLerQRCode(textoLido) {
   fecharScanner();
   
-  // 1. Extração do Payload (ID_ALUNO|SEMENTE_DIA)
   let idLimpo = textoLido;
   let sementeLida = null;
   
@@ -902,15 +887,12 @@ function aoLerQRCode(textoLido) {
      idLimpo = partes[0];
      sementeLida = partes[1];
   } else {
-     // Tratamento de falha nativa (aluno tenta ler link normal)
      let matchId = textoLido.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
      if (matchId) idLimpo = matchId[1];
   }
   
-  // 2. Validação Criptográfica Offline
   const sementeFiscal = localStorage.getItem("MAESTRO_SEMENTE_FISCAL");
   
-  // Se o fiscal tem a semente do dia gravada e a lida é diferente (ou não existe)
   if (sementeFiscal && sementeLida !== sementeFiscal) {
      document.getElementById('res-fiscal').innerHTML = `
         <div class="wallet-card dark" style="border-color: var(--danger);">
@@ -924,7 +906,6 @@ function aoLerQRCode(textoLido) {
      return;
   }
   
-  // 3. Tudo Certo? Busca os dados do aluno.
   document.getElementById('id-fiscal').value = idLimpo;
   validarFiscal();
 }
@@ -941,7 +922,7 @@ function lerQRCodePorFoto(event) {
   html5QrCode.scanFile(file, true)
     .then(textoLido => {
       document.getElementById('btn-scanner-nativo').innerHTML = `<span style="font-size: 20px;">📱</span> USAR CÂMARA NATIVA`;
-      aoLerQRCode(textoLido); // Reaproveita a mesma lógica anti-fraude do scanner contínuo
+      aoLerQRCode(textoLido); 
     })
     .catch(err => {
       showToast("QR Code não detetado.", "error");
@@ -1034,6 +1015,78 @@ function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal) {
 }
 
 // ========================================================================
+// 6.1. MOTOR DE CRISES (SOS MAESTRO)
+// ========================================================================
+function abrirModalSOS() {
+    document.getElementById('modal-sos-fiscal').classList.remove('hidden');
+    document.getElementById('sos-id-onibus').value = '';
+    document.getElementById('sos-motivo').value = '';
+}
+
+function fecharModalSOS() {
+    document.getElementById('modal-sos-fiscal').classList.add('hidden');
+    const btn = document.getElementById('btn-enviar-sos');
+    btn.innerHTML = 'ENVIAR ALARME E MEU GPS';
+    btn.disabled = false;
+}
+
+function confirmarEmergenciaGPS() {
+    const idBus = document.getElementById('sos-id-onibus').value.trim().toUpperCase();
+    const motivo = document.getElementById('sos-motivo').value;
+    const btn = document.getElementById('btn-enviar-sos');
+    
+    if (!idBus || !motivo) {
+        showToast("Preencha a Placa/Rota e selecione o motivo.", "error");
+        return;
+    }
+    
+    btn.innerHTML = 'A OBTER GPS... ⏳';
+    btn.disabled = true;
+    
+    if (!navigator.geolocation) {
+        enviarAlarmeCriseAPI(idBus, motivo, "GPS Indisponível no Dispositivo");
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            const coord = `${pos.coords.latitude}, ${pos.coords.longitude}`;
+            enviarAlarmeCriseAPI(idBus, motivo, coord);
+        },
+        function(err) {
+            enviarAlarmeCriseAPI(idBus, motivo, "GPS Recusado ou Falhou");
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+}
+
+async function enviarAlarmeCriseAPI(idBus, motivo, coords) {
+    const btn = document.getElementById('btn-enviar-sos');
+    btn.innerHTML = 'A COMUNICAR SECRETARIA...';
+    
+    try {
+        const res = await apiCall("declararEmergenciaOnibus", {
+            idRotaPlaca: idBus,
+            tipoAvaria: motivo,
+            coordenadasGps: coords
+        });
+        
+        if (res.sucesso) {
+            showToast("Emergência reportada! Alunos avisados.", "success");
+            fecharModalSOS();
+        } else {
+            showToast(res.erro || "Falha ao gravar emergência.", "error");
+            btn.innerHTML = 'TENTAR NOVAMENTE';
+            btn.disabled = false;
+        }
+    } catch(e) {
+        showToast("Erro de ligação com o servidor Maestro.", "error");
+        btn.innerHTML = 'TENTAR NOVAMENTE';
+        btn.disabled = false;
+    }
+}
+
+// ========================================================================
 // 7. MOTOR DO DASHBOARD ANALÍTICO
 // ========================================================================
 let myCharts = {}; 
@@ -1090,7 +1143,6 @@ function renderizarDashboardUI(stats) {
   desenharGraficos(stats.graficos);
 }
 
-// Localize a função renderChart e garanta que as escalas não tenham limites rígidos
 function renderChart(canvasId, type, labels, data, colors, options = {}) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
@@ -1099,7 +1151,6 @@ function renderChart(canvasId, type, labels, data, colors, options = {}) {
   Chart.defaults.color = '#aaaaaa';
   Chart.defaults.borderColor = '#333333';
 
-  // Opções padrão garantindo escala automática e começando no zero
   const defaultOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -1107,7 +1158,7 @@ function renderChart(canvasId, type, labels, data, colors, options = {}) {
     scales: {
       y: {
         beginAtZero: true,
-        ticks: { precision: 0 } // Evita decimais em contagens de pessoas
+        ticks: { precision: 0 } 
       }
     }
   };
@@ -1157,14 +1208,11 @@ function desenharGraficos(graficos) {
 // ========================================================================
 
 async function inicializarPushNotifications() {
-  // 1. Verifica se o navegador suporta Service Workers e Firebase Cloud Messaging
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof firebase === 'undefined') {
      console.log("Push não suportado ou Firebase não carregado.");
      return;
   }
 
-  // 2. Mitigação para Apple (iOS) e UX: Só pede permissão se a App for instalada (Standalone)
-  // Se quiser testar no PC sem instalar, remova/comente a linha abaixo durante o teste.
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   if (!isStandalone) return; 
 
@@ -1173,13 +1221,10 @@ async function inicializarPushNotifications() {
     const permission = await Notification.requestPermission();
     
     if (permission === 'granted') {
-      // O VapidKey será injetado globalmente pelo HTML (buscado do backend)
       const token = await messaging.getToken({ vapidKey: window.FIREBASE_VAPID_KEY });
       
       if (token) {
          const tokenSalvoLocal = localStorage.getItem("MAESTRO_FCM_TOKEN");
-         
-         // Se for um token novo ou se não estiver sincronizado com o ID atual do aluno
          if (token !== tokenSalvoLocal || !localStorage.getItem("FCM_SYNCED_ID")) {
             await registrarTokenPush(token);
          }
@@ -1191,7 +1236,6 @@ async function inicializarPushNotifications() {
 }
 
 async function registrarTokenPush(token) {
-  // Apenas envia para o backend se soubermos quem é o aluno (currentWalletId)
   if (!currentWalletId) return;
 
   try {
