@@ -34,6 +34,32 @@
     </div>
   </div>
 
+  <div id="modal-sos-fiscal" class="splash-overlay hidden" style="z-index: 9999; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);">
+    <div class="form-card" style="width: 90%; max-width: 400px; border: 2px solid var(--danger);">
+      <div class="form-header" style="margin-bottom: 15px;">
+         <span style="font-size: 36px; display: block; margin-bottom: 5px;">🚨</span>
+         <h2 style="color: var(--danger); font-size: 18px;">DECLARAR EMERGÊNCIA</h2>
+         <p style="font-size: 11px; line-height: 1.3;">Isto irá inativar o autocarro, libertar os estudantes para outras rotas e enviar o seu GPS à coordenação.</p>
+      </div>
+      
+      <label class="input-label" style="text-align: left;">PLACA OU ROTA DO AUTOCARRO</label>
+      <input type="text" id="sos-id-onibus" class="input-field uppercase" placeholder="Ex: Rota 1 ou ABC-1234">
+      
+      <label class="input-label" style="text-align: left;">MOTIVO DA PARAGEM</label>
+      <select id="sos-motivo" class="input-field" style="height: 45px;">
+         <option value="">Selecione a avaria...</option>
+         <option value="Avaria Mecânica / Motor">Avaria Mecânica / Motor</option>
+         <option value="Pneu Furado">Pneu Furado</option>
+         <option value="Acidente de Trânsito">Acidente de Trânsito</option>
+         <option value="Estrada Bloqueada">Estrada Bloqueada</option>
+         <option value="Outros">Outros (Detalhamento Posterior)</option>
+      </select>
+      
+      <button class="btn-solid" id="btn-enviar-sos" style="background: var(--danger); margin-top: 15px;" onclick="confirmarEmergenciaGPS()">ENVIAR ALARME E MEU GPS</button>
+      <button class="btn-text text-light" onclick="fecharModalSOS()">Cancelar</button>
+    </div>
+  </div>
+
   <div class="app-wrapper">
     <header class="app-header" id="global-header">
       <img id="ui-logo" src="icone.png" alt="Logo" class="hidden">
@@ -193,6 +219,14 @@
           <div class="info">
             <strong>Painel Analítico</strong>
             <span>Estatísticas</span>
+          </div>
+        </button>
+        
+        <button class="menu-card outline-card" style="border-color: var(--danger); background: rgba(239, 68, 68, 0.1);" onclick="abrirModalSOS()">
+          <span class="icon" style="background: var(--danger);">🚨</span>
+          <div class="info">
+            <strong style="color: var(--danger);">Reportar Avaria (SOS)</strong>
+            <span>Aviso de paragem à Secretaria</span>
           </div>
         </button>
 
