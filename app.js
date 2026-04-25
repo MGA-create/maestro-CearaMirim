@@ -1,5 +1,5 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V8.5 (HEADLESS REST)
+// 0. CONFIGURAÇÕES DA API V8.5/V8.7 (HEADLESS REST)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
@@ -136,7 +136,7 @@ function initPWA() {
     `;
     const swBlob = new Blob([swCode], { type: 'application/javascript' });
     navigator.serviceWorker.register(URL.createObjectURL(swBlob))
-      .then(reg => console.log('Service Worker V8.5 Registado'))
+      .then(reg => console.log('Service Worker V8.5/8.7 Registado'))
       .catch(err => console.log('Erro no SW:', err));
   }
 
@@ -370,7 +370,6 @@ async function consultarEstudante() {
   }
 }
 
-// V8.5: Função Intercetora de UX - Preenche o ID e foca na Senha automaticamente
 function irParaCofreComId(idAcesso) {
     switchView('view-login');
     const inputId = document.getElementById('login-id');
@@ -399,7 +398,6 @@ function renderizarTimelineEstudante(dados, container) {
   const sDocs = String(dados.statusDocs || "").trim().toUpperCase();
   const sAtiv = String(dados.statusAtividade || "").trim().toUpperCase();
 
-  // V8.5 Transparência: Função geradora da Caixa de Citação para o aluno ler o parecer
   const buildObsBox = (obs, colorBorder, colorBg, colorText) => {
     if (!obs || obs.trim() === "") return "";
     return `
@@ -410,7 +408,6 @@ function renderizarTimelineEstudante(dados, container) {
     `;
   };
 
-  // Lógica da Timeline com Injeção de Observações
   if (sAtiv === "CANCELADO") {
     html += `<div class="timeline-item active-red"><strong style="color:var(--danger);">2. Emissão Interrompida</strong></div>`;
     html += `<div class="timeline-item active-red">
@@ -510,6 +507,9 @@ async function loginCarteira() {
       switchView('view-wallet');
       document.getElementById('login-id').value = '';
       document.getElementById('login-senha').value = '';
+      
+      // V8.7 PUSH: Assim que o aluno entra na carteira, tentamos registar o Push
+      setTimeout(inicializarPushNotifications, 2000); 
     }
   } catch(err) {
     btn.innerText = "ENTRAR NO COFRE";
@@ -618,7 +618,7 @@ function sairCarteira() {
 }
 
 // ========================================================================
-// 6. MODO FISCAL - OMNI-SCANNER & BUSCA INTELIGENTE (V8.5)
+// 6. MODO FISCAL - OMNI-SCANNER & BUSCA INTELIGENTE
 // ========================================================================
 let html5QrcodeScanner = null;
 
@@ -857,6 +857,64 @@ function desenharGraficos(graficos) {
   const renderInclusao = (canvas, objData) => renderChart(canvas, 'bar', ['Sim', 'Não'], [objData['Sim'] || 0, objData['Não'] || 0], ['#10B981', '#333']);
   renderInclusao('chart-pcd', graficos.inclusao.pcd); renderInclusao('chart-menor', graficos.inclusao.menor);
   renderInclusao('chart-acompanhado', graficos.inclusao.acompanhado); renderInclusao('chart-estagio', graficos.inclusao.estagio);
+}
+
+// ========================================================================
+// 8. MOTOR DE NOTIFICAÇÕES PUSH (FIREBASE V8.7)
+// ========================================================================
+
+async function inicializarPushNotifications() {
+  // 1. Verifica se o navegador suporta Service Workers e Firebase Cloud Messaging
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof firebase === 'undefined') {
+     console.log("Push não suportado ou Firebase não carregado.");
+     return;
+  }
+
+  // 2. Mitigação para Apple (iOS) e UX: Só pede permissão se a App for instalada (Standalone)
+  // Se quiser testar no PC sem instalar, remova/comente a linha abaixo durante o teste.
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (!isStandalone) return; 
+
+  try {
+    const messaging = firebase.messaging();
+    const permission = await Notification.requestPermission();
+    
+    if (permission === 'granted') {
+      // O VapidKey será injetado globalmente pelo HTML (buscado do backend)
+      const token = await messaging.getToken({ vapidKey: window.FIREBASE_VAPID_KEY });
+      
+      if (token) {
+         const tokenSalvoLocal = localStorage.getItem("MAESTRO_FCM_TOKEN");
+         
+         // Se for um token novo ou se não estiver sincronizado com o ID atual do aluno
+         if (token !== tokenSalvoLocal || !localStorage.getItem("FCM_SYNCED_ID")) {
+            await registrarTokenPush(token);
+         }
+      }
+    }
+  } catch (error) {
+    console.warn("Permissão de Push negada ou falhou:", error);
+  }
+}
+
+async function registrarTokenPush(token) {
+  // Apenas envia para o backend se soubermos quem é o aluno (currentWalletId)
+  if (!currentWalletId) return;
+
+  try {
+     const res = await apiCall("registrarPushToken", { 
+         idEstudante: currentWalletId, 
+         pushToken: token 
+     });
+     
+     if (res.sucesso) {
+        localStorage.setItem("MAESTRO_FCM_TOKEN", token);
+        localStorage.setItem("FCM_SYNCED_ID", currentWalletId);
+        console.log("📱 Push Token registado com sucesso para a base de dados.");
+     }
+  } catch (err) {
+     console.error("Falha ao registar o Push Token no Backend.");
+  }
 }
 
 window.onload = function() {
