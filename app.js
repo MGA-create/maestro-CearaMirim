@@ -15,7 +15,6 @@ async function apiCall(action, payload = {}) {
       body: JSON.stringify({ action: action, payload: payload, token: token })
     });
     
-    // V8.5: Se a Google devolver HTML (Erro de Timeout ou Script quebrado), apanha o erro.
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.indexOf("text/html") !== -1) {
        const htmlErro = await response.text();
@@ -58,7 +57,6 @@ async function bootSystem() {
       window.THEME_COLOR = res.ui.COR_PRIMARIA;
       window.BG_COLOR = res.ui.COR_SECUNDARIA;
       
-      // 1. Alterar o título da aba do navegador (Branding White-label)
       document.title = window.PWA_NOME;
       
       document.documentElement.style.setProperty('--primary', res.ui.COR_PRIMARIA);
@@ -72,11 +70,9 @@ async function bootSystem() {
         if (splashLogo) { splashLogo.src = res.ui.LOGO; splashLogo.classList.remove('hidden'); }
       }
       
-      // 2. O Nome Principal do Sistema (Ex: MAESTRO SMEB)
       const elNome = document.getElementById('ui-nome-sistema');
       if (elNome) elNome.innerText = window.PWA_NOME.toUpperCase();
       
-      // 3. O Subtítulo do Sistema (Ex: Secretaria Municipal de Educação Básica)
       const elSetor = document.getElementById('ui-nome-setor');
       if (elSetor) elSetor.innerText = res.ui.NOME_SISTEMA;
 
@@ -95,9 +91,7 @@ async function bootSystem() {
     console.warn("A arrancar em modo offline persistente.");
   }
   
-  // Tudo pintado e formatado? Levanta-se a cortina.
   ocultarSplashScreen();
-  
   carregarAvisosSMEB(); 
   verificarSessaoAtiva();
 }
@@ -278,7 +272,6 @@ async function fazerLoginOperador() {
     if (resCache.sucesso) {
        localStorage.setItem(CACHE_LISTA_KEY, JSON.stringify(resCache.dados));
        
-       // V8.8: O Fiscal guarda a Semente Diária para poder validar os alunos offline
        if (resCache.sementeDia) {
            localStorage.setItem("MAESTRO_SEMENTE_FISCAL", resCache.sementeDia);
        }
@@ -333,7 +326,7 @@ async function encerrarSessaoOperador(silencioso = false) {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(CACHE_LISTA_KEY);
   localStorage.removeItem(CACHE_STATS_KEY);
-  localStorage.removeItem("MAESTRO_SEMENTE_FISCAL"); // Limpeza da semente
+  localStorage.removeItem("MAESTRO_SEMENTE_FISCAL"); 
   if (timeoutSessaoID) clearTimeout(timeoutSessaoID);
   fecharScanner();
   
@@ -510,7 +503,6 @@ async function loginCarteira() {
       currentWalletId = id;
       currentWalletSenha = senha;
       
-      // V8.8: Guarda o cache estrito para modo offline (sem internet)
       localStorage.setItem("MAESTRO_WALLET_CACHE", JSON.stringify(res));
       localStorage.setItem("MAESTRO_WALLET_CREDS", JSON.stringify({id: id, senha: senha}));
 
@@ -519,13 +511,14 @@ async function loginCarteira() {
       document.getElementById('login-id').value = '';
       document.getElementById('login-senha').value = '';
       
+      // V8.8: Inicia sondagem de viagens após o login
+      verificarJanelasEmbarque(); 
       setTimeout(inicializarPushNotifications, 2000); 
     }
   } catch(err) {
     btn.innerText = "ENTRAR NO COFRE";
     btn.disabled = false;
     
-    // V8.8: RESILIÊNCIA OFFLINE. Se o telemóvel não tiver internet, verifica o cache.
     const cachedData = localStorage.getItem("MAESTRO_WALLET_CACHE");
     const cachedCreds = localStorage.getItem("MAESTRO_WALLET_CREDS");
     
@@ -599,13 +592,9 @@ function renderizarCarteira(dados) {
   container.innerHTML = html;
   iniciarRelogioAntiPrint('wallet-clock');
 
-  // V8.8: Renderização Automática do QR Code (Agnóstico de Rede)
   const qrContainer = document.getElementById('wallet-qrcode');
   if (qrContainer) {
-      qrContainer.innerHTML = ""; // Limpa lixo de renderizações antigas
-      
-      // A Semente é enviada pelo backend. Se estiver em modo offline, usa a guardada no cache.
-      // Se não houver semente (backend ainda não atualizado), usa a data local como fallback de transição.
+      qrContainer.innerHTML = ""; 
       const semente = dados.sementeDia || new Date().toISOString().split('T')[0];
       const payloadQR = `${dados.idCarteira}|${semente}`;
 
@@ -614,8 +603,8 @@ function renderizarCarteira(dados) {
           width: 160,
           height: 160,
           colorDark : "#000000",
-          colorLight : "#ffffff", // Fundo branco obrigatório para legibilidade dos lasers
-          correctLevel : QRCode.CorrectLevel.H // Alta correção de erro para ecrãs rachados
+          colorLight : "#ffffff", 
+          correctLevel : QRCode.CorrectLevel.H 
       });
   }
 }
@@ -673,11 +662,205 @@ async function baixarDocumento(tipo, tentativa = 1) {
 
 function sairCarteira() {
   if (clockInterval) clearInterval(clockInterval);
+  pararTransmissaoGps(); // V8.8: Garante que o GPS para se o aluno fizer logout
   document.getElementById('wallet-container').innerHTML = ''; 
   currentWalletId = "";
   currentWalletSenha = "";
-  // Não apagamos o Cache Offline aqui propositadamente. Se o aluno fechar e abrir na paragem, o cache salva-o.
+  
+  // Oculta o painel de mobilidade ao sair
+  const painelMob = document.getElementById('view-mobilidade');
+  if (painelMob) painelMob.style.display = 'none';
+  
   switchView('view-aluno-menu'); 
+}
+
+// ========================================================================
+// 5.1. MOTOR DE MOBILIDADE E CHECK-IN (V8.8)
+// ========================================================================
+
+let onibusSelecionadoGPS = null;
+let idIntervaloGPS = null;
+let wakeLockAtivo = null;
+
+async function verificarJanelasEmbarque() {
+   if (!currentWalletId) return;
+   const painelMob = document.getElementById('view-mobilidade');
+   const containerLista = document.getElementById('lista-viagens-container');
+   const painelSucesso = document.getElementById('painel-viagem-ativa');
+   
+   if (painelMob) painelMob.style.display = 'block';
+   if (painelSucesso) painelSucesso.classList.add('hidden');
+   if (containerLista) {
+       containerLista.innerHTML = `<div class="loader" style="margin: 0 auto 10px auto; width: 25px; height: 25px; border-width: 3px;"></div><p style="font-size: 11px; color: var(--text-sub);">A procurar autocarros...</p>`;
+       containerLista.classList.remove('hidden');
+   }
+
+   try {
+       const res = await apiCall("getViagensDisponiveisPortal", { idEstudante: currentWalletId });
+       
+       if (!res.sucesso) {
+           if (containerLista) containerLista.innerHTML = `<p style="font-size: 11px; color: var(--danger);">Falha ao carregar frota.</p>`;
+           return;
+       }
+
+       if (res.emViagem) {
+           // O aluno já confirmou presença recentemente e o TTL ainda não expirou
+           if (containerLista) containerLista.classList.add('hidden');
+           if (painelSucesso) painelSucesso.classList.remove('hidden');
+           return;
+       }
+
+       if (!res.viagens || res.viagens.length === 0) {
+           if (containerLista) containerLista.innerHTML = `<p style="font-size: 12px; color: var(--text-sub); font-weight: 500; margin:0;">Nenhum embarque previsto para agora.</p>`;
+           return;
+       }
+
+       // Renderiza as viagens disponíveis
+       let html = `<p style="font-size: 11px; color: var(--text-sub); margin-bottom: 10px;">Selecione o seu autocarro para garantir lugar:</p>`;
+       res.viagens.forEach(v => {
+           const labelLota = v.vagasRestantes > 0 ? `<span style="color:var(--success); font-weight:bold;">${v.vagasRestantes} vagas</span>` : `<span style="color:var(--danger); font-weight:bold;">LOTADO</span>`;
+           const btnDisable = v.vagasRestantes <= 0 ? "disabled" : "";
+           const btnBg = v.vagasRestantes <= 0 ? "#ccc" : "var(--primary)";
+           
+           html += `
+           <div style="background: var(--secondary); padding: 12px; border-radius: 8px; margin-bottom: 10px; text-align: left; border: 1px solid var(--border);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                 <strong style="font-size: 13px;">🚌 ${v.rota}</strong>
+                 <span style="font-size: 11px; background: #e0e7ff; padding: 2px 6px; border-radius: 4px; color: #3730a3;">${v.horario}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                 <span style="font-size: 11px;">Status: ${labelLota}</span>
+                 <button ${btnDisable} onclick="confirmarEmbarque('${v.id}')" style="background: ${btnBg}; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">FAZER CHECK-IN</button>
+              </div>
+           </div>`;
+       });
+       
+       if (containerLista) containerLista.innerHTML = html;
+
+   } catch (e) {
+       if (containerLista) containerLista.innerHTML = `<p style="font-size: 11px; color: var(--danger);">Não foi possível atualizar a logística.</p>`;
+   }
+}
+
+async function confirmarEmbarque(idOnibus) {
+    showToast("A processar lugar...", "loading");
+    try {
+        // Envia false primeiro para 'querSerGuia', o toggle aparece depois se tiver sucesso
+        const res = await apiCall("realizarCheckInOnibus", { idOnibus: idOnibus, idEstudante: currentWalletId, querSerGuia: false });
+        
+        if (res.sucesso) {
+            showToast("Lugar Confirmado!", "success");
+            onibusSelecionadoGPS = idOnibus; // Guarda o ID na memória local caso ele queira ligar o GPS
+            
+            document.getElementById('lista-viagens-container').classList.add('hidden');
+            const painelSucesso = document.getElementById('painel-viagem-ativa');
+            if (painelSucesso) painelSucesso.classList.remove('hidden');
+            
+            // Garante que o switch do GPS começa desligado
+            const toggle = document.getElementById('toggle-guia');
+            if (toggle) { toggle.checked = false; toggle.disabled = false; }
+            document.getElementById('status-guia-texto').innerText = "Desligado";
+            document.getElementById('status-guia-texto').style.color = "var(--text-sub)";
+            
+        } else {
+            showToast(res.erro || "Lotação atingida no momento do clique.", "error");
+            verificarJanelasEmbarque(); // Recarrega a lista
+        }
+    } catch (e) {
+        showToast("Erro ao processar reserva.", "error");
+    }
+}
+
+// 5.2 RASTREAMENTO GPS (RESILIÊNCIA NAVEGADOR)
+async function toggleGuiaGps(checkbox) {
+    const textoStatus = document.getElementById('status-guia-texto');
+    
+    if (checkbox.checked) {
+        // Tenta ativar
+        textoStatus.innerText = "A Iniciar Radar...";
+        textoStatus.style.color = "#F59E0B";
+        checkbox.disabled = true; // Impede duplos cliques rápidos
+        
+        if (!navigator.geolocation) {
+            showToast("O seu telemóvel não suporta GPS nativo.", "error");
+            checkbox.checked = false; checkbox.disabled = false;
+            textoStatus.innerText = "Falha no GPS";
+            return;
+        }
+
+        try {
+            // Bloqueia o ecrã para não apagar e matar o processo
+            if ('wakeLock' in navigator) {
+                wakeLockAtivo = await navigator.wakeLock.request('screen');
+            }
+            
+            // Pede permissão e tira a primeira coordenada
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    enviarCoordenadaSegura(pos.coords.latitude, pos.coords.longitude);
+                    
+                    // Inicia o Loop de 2 em 2 minutos (120000 ms)
+                    idIntervaloGPS = setInterval(() => {
+                        navigator.geolocation.getCurrentPosition(
+                            p => enviarCoordenadaSegura(p.coords.latitude, p.coords.longitude),
+                            e => console.warn("GPS perdeu sinal momentâneo")
+                        );
+                    }, 120000);
+                    
+                    textoStatus.innerText = "Transmissão Ativa 📡";
+                    textoStatus.style.color = "var(--success)";
+                    checkbox.disabled = false;
+                    showToast("Obrigado por ser o Guia desta viagem!", "success");
+                },
+                function(err) {
+                    showToast("Permissão de GPS negada.", "error");
+                    pararTransmissaoGps(checkbox);
+                },
+                { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+            );
+        } catch (err) {
+            showToast("O ecrã não suporta modo vigilância.", "error");
+            pararTransmissaoGps(checkbox);
+        }
+    } else {
+        // Aluno desligou manualmente
+        pararTransmissaoGps(checkbox);
+    }
+}
+
+function enviarCoordenadaSegura(lat, lng) {
+    if (!onibusSelecionadoGPS || !currentWalletId) return;
+    
+    // É uma chamada silenciosa, não queremos chatear o utilizador com Toasts a cada 2 min
+    apiCall("atualizarGPSOnibus", { 
+        idOnibus: onibusSelecionadoGPS, 
+        idEstudante: currentWalletId, 
+        lat: lat, 
+        lng: lng 
+    }).then(res => {
+        if (res && !res.sucesso) {
+            // Se o servidor disser que a sessão expirou (ou outro assumiu), desliga tudo localmente.
+            console.log("Servidor rejeitou o GPS: " + res.erro);
+            const toggle = document.getElementById('toggle-guia');
+            pararTransmissaoGps(toggle);
+        }
+    }).catch(e => console.log("Falha silenciosa no ping GPS."));
+}
+
+function pararTransmissaoGps(checkboxRef) {
+    if (idIntervaloGPS) { clearInterval(idIntervaloGPS); idIntervaloGPS = null; }
+    if (wakeLockAtivo) { wakeLockAtivo.release().then(() => wakeLockAtivo = null); }
+    
+    if (checkboxRef) { 
+        checkboxRef.checked = false; 
+        checkboxRef.disabled = false; 
+    }
+    
+    const textoStatus = document.getElementById('status-guia-texto');
+    if (textoStatus) {
+        textoStatus.innerText = "Desligado";
+        textoStatus.style.color = "var(--text-sub)";
+    }
 }
 
 // ========================================================================
