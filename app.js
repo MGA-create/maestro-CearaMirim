@@ -1090,6 +1090,7 @@ function renderizarDashboardUI(stats) {
   desenharGraficos(stats.graficos);
 }
 
+// Localize a função renderChart e garanta que as escalas não tenham limites rígidos
 function renderChart(canvasId, type, labels, data, colors, options = {}) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
@@ -1098,10 +1099,31 @@ function renderChart(canvasId, type, labels, data, colors, options = {}) {
   Chart.defaults.color = '#aaaaaa';
   Chart.defaults.borderColor = '#333333';
 
+  // Opções padrão garantindo escala automática e começando no zero
+  const defaultOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { precision: 0 } // Evita decimais em contagens de pessoas
+      }
+    }
+  };
+
   myCharts[canvasId] = new Chart(ctx, {
     type: type,
-    data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderRadius: (type === 'bar' ? 4 : 0), borderWidth: 0 }] },
-    options: Object.assign({ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }, options)
+    data: { 
+      labels: labels, 
+      datasets: [{ 
+        data: data, 
+        backgroundColor: colors, 
+        borderRadius: (type === 'bar' ? 4 : 0), 
+        borderWidth: 0 
+      }] 
+    },
+    options: Object.assign(defaultOptions, options)
   });
 }
 
