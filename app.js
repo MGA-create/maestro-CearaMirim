@@ -3,16 +3,20 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw7WcMEKiklegbXksrPcQmhuXW1ht8uC6-BvdYKGdu7Ccamcya4HJoD0Vp0vp18ETce/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwI5gzmVRcDeZD7oT9vWN0YFb_eI151GXVFmOfZabpakddmJQW6qNDCSTkUu9xzsy-j/exec";
 
 async function apiCall(action, payload = {}) {
-  const token = localStorage.getItem("MAESTRO_OP_TOKEN");
+  // V8.8: O interceptor agora envia o token de Fiscal (prioridade) ou o de Estudante
+  let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
+  if (!tokenToUse) {
+     tokenToUse = localStorage.getItem("MAESTRO_EST_TOKEN");
+  }
   
   try {
     const response = await fetch(GAS_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: action, payload: payload, token: token })
+      body: JSON.stringify({ action: action, payload: payload, token: tokenToUse })
     });
     
     const contentType = response.headers.get("content-type");
@@ -28,8 +32,14 @@ async function apiCall(action, payload = {}) {
       if (action === "invalidarTokenSessao") {
         return { sucesso: true };
       } else {
-        encerrarSessaoOperador(true);
-        showToast(data.erro || "Sessão expirada. A redirecionar...", "error");
+        // Se o erro 401 vier do token de estudante, faz o auto-logout do cofre
+        if (localStorage.getItem("MAESTRO_EST_TOKEN")) {
+            sairCarteira(true);
+            showToast("A sua sessão de estudante expirou. Por favor, aceda novamente.", "error");
+        } else {
+            encerrarSessaoOperador(true);
+            showToast(data.erro || "Sessão expirada. A redirecionar...", "error");
+        }
         throw new Error("Sessão Expirada");
       }
     }
@@ -122,8 +132,6 @@ function initPWA() {
   const blob = new Blob([JSON.stringify(manifestJSON)], { type: 'application/json' });
   document.getElementById('dynamic-manifest').setAttribute('href', URL.createObjectURL(blob));
 
-  // V8.8: O Service Worker fantasma (blob) foi removido por razões de segurança.
-  // Agora apontamos para o ficheiro físico './sw.js' na raiz do servidor.
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
       .then(reg => console.log('Service Worker V8.8 Registado com ficheiro real.'))
@@ -366,8 +374,8 @@ async function consultarEstudante() {
 }
 
 function irParaCofreComId(idAcesso) {
-    // V8.8: Persistência do Estudante. Se a RAM já o conhecer, entra direto!
-    if (currentWalletId && currentWalletId.toUpperCase() === idAcesso.toUpperCase()) {
+    // V8.8: Persistência do Estudante com Token Volátil
+    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
         switchView('view-wallet');
         return;
     }
@@ -385,16 +393,14 @@ function irParaCofreComId(idAcesso) {
     }
 }
 
-// Intercetor Global: O botão no menu do aluno para "Abrir Carteira Digital" vai primeiro verificar isto
 function abrirTelaCofreOuEntrarDireto() {
-    if (currentWalletId && currentWalletSenha) {
+    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
         switchView('view-wallet');
     } else {
         switchView('view-login');
     }
 }
 
-// Atualizamos dinamicamente o clique no botão do menu para usar o novo intercetor
 document.addEventListener("DOMContentLoaded", () => {
     const btnCarteira = document.querySelector("button.menu-card.primary-card[onclick*='view-login']");
     if (btnCarteira) {
@@ -495,7 +501,7 @@ let currentWalletId = "";
 let currentWalletSenha = "";
 let currentStudentName = "";
 let clockInterval = null; 
-let timeoutSessaoEstudanteID = null; // V8.8: Relógio bomba do Aluno
+let timeoutSessaoEstudanteID = null; 
 
 async function loginCarteira() {
   const id = document.getElementById('login-id').value.trim();
@@ -526,6 +532,11 @@ async function loginCarteira() {
       currentWalletSenha = senha;
       currentStudentName = res.nome;
       
+      // V8.8: Armazena o Token Volátil devolvido pela API
+      if (res.token) {
+          localStorage.setItem("MAESTRO_EST_TOKEN", res.token);
+      }
+      
       localStorage.setItem("MAESTRO_WALLET_CACHE", JSON.stringify(res));
       localStorage.setItem("MAESTRO_WALLET_CREDS", JSON.stringify({id: id, senha: senha}));
 
@@ -534,7 +545,7 @@ async function loginCarteira() {
       document.getElementById('login-id').value = '';
       document.getElementById('login-senha').value = '';
       
-      armarRelogioSessaoEstudante(); // Inicia a sessão de 3 horas
+      armarRelogioSessaoEstudante(); 
       verificarJanelasEmbarque(); 
       setTimeout(inicializarPushNotifications, 2000); 
     }
@@ -553,7 +564,7 @@ async function loginCarteira() {
           const resCached = JSON.parse(cachedData);
           currentStudentName = resCached.nome;
           
-          showToast("Modo Offline Ativado. A usar dados guardados.", "warning");
+          showToast("Modo Offline Ativado. Funções interativas limitadas.", "warning");
           
           renderizarCarteira(resCached);
           switchView('view-wallet');
@@ -573,10 +584,9 @@ async function loginCarteira() {
 
 function armarRelogioSessaoEstudante() {
     if (timeoutSessaoEstudanteID) clearTimeout(timeoutSessaoEstudanteID);
-    // 3 Horas em milissegundos (10800000)
     timeoutSessaoEstudanteID = setTimeout(() => {
+        sairCarteira(true); 
         showToast("Sessão de segurança da Carteira expirada. Por favor, aceda novamente.", "info");
-        sairCarteira(true); // true para forçar o fecho sem o toast de "Logout Manual"
     }, 10800000);
 }
 
@@ -667,7 +677,7 @@ async function baixarDocumento(tipo, tentativa = 1) {
   btn.disabled = true;
 
   try {
-    const res = await apiCall("baixarDocumentoSeguro", { id: currentWalletId, senha: currentWalletSenha, tipo: tipo });
+    const res = await apiCall("baixarDocumentoSeguro", { id: currentWalletId, tipo: tipo });
     
     if (res.erro) {
       btn.innerHTML = textoOriginal;
@@ -697,7 +707,12 @@ async function baixarDocumento(tipo, tentativa = 1) {
   }
 }
 
-function sairCarteira(expiracaoSilenciosa = false) {
+async function sairCarteira(expiracaoSilenciosa = false) {
+  // Chama a API para destruir o Token do Estudante no servidor
+  try { await apiCall("invalidarTokenSessao"); } catch(e) {}
+  
+  localStorage.removeItem("MAESTRO_EST_TOKEN"); // Remove o token localmente
+
   if (clockInterval) clearInterval(clockInterval);
   if (timeoutSessaoEstudanteID) clearInterval(timeoutSessaoEstudanteID);
   
