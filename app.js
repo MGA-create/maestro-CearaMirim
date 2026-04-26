@@ -102,7 +102,7 @@ async function bootSystem() {
   ocultarSplashScreen();
   carregarAvisosSMEB(); 
   verificarSessaoAtiva();
-  restaurarSessaoEstudante(); // V8.8: Recupera a RAM se a página for recarregada
+  restaurarSessaoEstudante(); // V8.8 QA: Recupera a RAM se a página for recarregada
 }
 
 function ocultarSplashScreen() {
@@ -116,8 +116,6 @@ function ocultarSplashScreen() {
 function initPWA() {
   if(!window.PWA_NOME) return; 
 
-  // V8.8: Ocultado a geração via JS. O HTML agora chama o manifest físico.
-  // Mantém-se o registo do Service Worker.
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
       .then(reg => console.log('Service Worker V8.8 Registado com ficheiro real.'))
@@ -359,41 +357,6 @@ async function consultarEstudante() {
   }
 }
 
-function irParaCofreComId(idAcesso) {
-    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN") && currentWalletId.toUpperCase() === idAcesso.toUpperCase()) {
-        switchView('view-wallet');
-        return;
-    }
-    
-    switchView('view-login');
-    const inputId = document.getElementById('login-id');
-    const inputSenha = document.getElementById('login-senha');
-    
-    if (inputId && idAcesso) {
-        inputId.value = idAcesso;
-    }
-    
-    if (inputSenha) {
-        setTimeout(() => { inputSenha.focus(); }, 100); 
-    }
-}
-
-function abrirTelaCofreOuEntrarDireto() {
-    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
-        switchView('view-wallet');
-    } else {
-        switchView('view-login');
-    }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const btnCarteira = document.querySelector("button.menu-card.primary-card[onclick*='view-login']");
-    if (btnCarteira) {
-        btnCarteira.onclick = abrirTelaCofreOuEntrarDireto;
-    }
-});
-
-
 function renderizarTimelineEstudante(dados, container) {
   const nomeLimpo = formatarNome(dados.nome).split(' ')[0];
   let html = `<h3 style="margin:0 0 15px 0; color:var(--primary);">Olá, ${nomeLimpo}!</h3>`;
@@ -459,7 +422,6 @@ function renderizarTimelineEstudante(dados, container) {
              <span style="font-size: 11px; color: var(--success); display:block; margin-bottom:5px; text-transform: uppercase; font-weight:700;">O seu ID de Acesso é:</span>
              <strong style="font-size: 22px; color: #065F46; letter-spacing: 2px; font-family: monospace;">${dados.idAcesso}</strong>
              <p style="font-size: 11px; color: #065F46; margin: 8px 0 0 0;">Use este ID e os 4 últimos dígitos do seu CPF para abrir o cofre digital.</p>
-             <button class="btn-solid" style="margin-top:15px;" onclick="irParaCofreComId('${dados.idAcesso}')">IR PARA O COFRE</button>
            </div>`;
         }
       } else {
@@ -488,6 +450,7 @@ let currentStudentName = "";
 let clockInterval = null; 
 let timeoutSessaoEstudanteID = null; 
 
+// V8.8 QA: Restaurar e redirecionar automaticamente se o utilizador der F5
 function restaurarSessaoEstudante() {
     const token = localStorage.getItem("MAESTRO_EST_TOKEN");
     const cachedDataRaw = localStorage.getItem("MAESTRO_WALLET_CACHE");
@@ -501,11 +464,34 @@ function restaurarSessaoEstudante() {
             currentWalletSenha = creds.senha;
             currentStudentName = dados.nome;
             armarRelogioSessaoEstudante();
+            
+            // Força a renderização imediata do Cofre
+            abrirTelaCofreOuEntrarDireto();
         } catch(e) {
             console.log("Erro ao restaurar sessão de estudante na RAM.");
         }
     }
 }
+
+function abrirTelaCofreOuEntrarDireto() {
+    // Se a RAM estiver preenchida e o token existir, injeta o HTML da Carteira
+    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
+        const cachedDataRaw = localStorage.getItem("MAESTRO_WALLET_CACHE");
+        if (cachedDataRaw) {
+            renderizarCarteira(JSON.parse(cachedDataRaw));
+            switchView('view-wallet');
+            return;
+        }
+    }
+    switchView('view-login');
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const btnCarteira = document.querySelector("button.menu-card.primary-card[onclick*='view-login']");
+    if (btnCarteira) {
+        btnCarteira.onclick = abrirTelaCofreOuEntrarDireto;
+    }
+});
 
 async function loginCarteira() {
   const id = document.getElementById('login-id').value.trim();
@@ -549,7 +535,6 @@ async function loginCarteira() {
       document.getElementById('login-senha').value = '';
       
       armarRelogioSessaoEstudante(); 
-      verificarJanelasEmbarque(); 
       setTimeout(inicializarPushNotifications, 2000); 
     }
   } catch(err) {
@@ -640,7 +625,6 @@ function renderizarCarteira(dados) {
   
   container.innerHTML = html;
   
-  // V8.8 QA: Adicionado o botão para ver viagens
   if (actions) {
       actions.innerHTML = `
         <div style="display:flex; gap:10px; margin-bottom: 15px;">
@@ -757,20 +741,28 @@ let idIntervaloGPS = null;
 let wakeLockAtivo = null;
 
 async function verificarJanelasEmbarque() {
-   if (!currentWalletId) return;
+   if (!currentWalletId) {
+      showToast("Sessão inválida para aceder às viagens.", "error");
+      return;
+   }
    
-   // V8.8 QA: O ecrã de Mobilidade agora é uma "View" à parte para não esmagar o Cofre
-   switchView('view-mobilidade');
+   // V8.8 QA: Em vez de esconder o Cofre (switchView), apenas mostramos a div de Mobilidade
+   const painelMob = document.getElementById('view-mobilidade');
    const containerLista = document.getElementById('lista-viagens-container');
    const painelSucesso = document.getElementById('painel-viagem-ativa');
    
+   if (painelMob) painelMob.style.display = 'block';
    if (painelSucesso) painelSucesso.classList.add('hidden');
+   
    if (containerLista) {
        containerLista.innerHTML = `<div class="loader" style="margin: 0 auto 10px auto; width: 25px; height: 25px; border-width: 3px;"></div><p style="font-size: 11px; color: var(--text-sub);">A procurar autocarros...</p>`;
        containerLista.classList.remove('hidden');
    }
 
    try {
+       // Rola a página suavemente para o painel de viagens
+       if (painelMob) painelMob.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
        const res = await apiCall("getViagensDisponiveisPortal", { idEstudante: currentWalletId });
        
        if (!res.sucesso) {
@@ -784,7 +776,6 @@ async function verificarJanelasEmbarque() {
            return;
        }
 
-       // V8.8 QA: Feedback inteligente se não houver viagens
        if (!res.viagens || res.viagens.length === 0) {
            let msgEmpty = "Nenhum embarque previsto para agora.";
            if (res.statusOperacao === "FORA_DE_HORARIO") {
@@ -792,7 +783,7 @@ async function verificarJanelasEmbarque() {
            } else if (res.statusOperacao === "SEM_FROTA") {
                msgEmpty = "Não há autocarros ativos associados à sua rota neste momento.";
            }
-           if (containerLista) containerLista.innerHTML = `<div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 8px; color: #92400e; font-size: 12px; line-height: 1.4;">${msgEmpty}</div>`;
+           if (containerLista) containerLista.innerHTML = `<div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 8px; color: #92400e; font-size: 12px; line-height: 1.4; text-align:left;">${msgEmpty}</div>`;
            return;
        }
 
@@ -1231,7 +1222,7 @@ async function abrirMuralDaSemana() {
         const res = await apiCall("getMuralDaSemana");
         
         if (!res.sucesso) {
-            container.innerHTML = `<div class="error-box">Não foi possível carregar o mural no momento.</div>`;
+            container.innerHTML = `<div class="error-box">${res.erro || "Não foi possível carregar o mural no momento."}</div>`;
             return;
         }
         
@@ -1428,6 +1419,22 @@ function desenharGraficos(graficos) {
 // ========================================================================
 
 async function inicializarPushNotifications() {
+  // V8.8 QA: Inicialização transferida do HTML para cá para evitar erros de 'defer'
+  const firebaseConfig = {
+    apiKey: "COLE_SUA_API_KEY",
+    authDomain: "COLE_SEU_PROJECT_ID.firebaseapp.com",
+    projectId: "COLE_SEU_PROJECT_ID",
+    storageBucket: "COLE_SEU_PROJECT_ID.appspot.com",
+    messagingSenderId: "COLE_SEU_SENDER_ID",
+    appId: "COLE_SEU_APP_ID"
+  };
+
+  try {
+    if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  } catch(e) { console.warn("Firebase Init falhou:", e); return; }
+
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof firebase === 'undefined') {
      console.log("Push não suportado ou Firebase não carregado.");
      return;
