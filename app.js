@@ -6,10 +6,9 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwI5gzmVRcDeZD7oT9vWN0YFb_eI151GXVFmOfZabpakddmJQW6qNDCSTkUu9xzsy-j/exec";
 
 async function apiCall(action, payload = {}) {
-  // V8.8: O interceptor agora tenta enviar o Token do Estudante se não houver o de Fiscal
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
   if (!tokenToUse) {
-     tokenToUse = localStorage.getItem("MAESTRO_EST_TOKEN"); // <-- ESTA É A CHAVE!
+     tokenToUse = localStorage.getItem("MAESTRO_EST_TOKEN"); 
   }
   
   try {
@@ -103,6 +102,7 @@ async function bootSystem() {
   ocultarSplashScreen();
   carregarAvisosSMEB(); 
   verificarSessaoAtiva();
+  restaurarSessaoEstudante(); // V8.8: Recupera a RAM se a página for recarregada
 }
 
 function ocultarSplashScreen() {
@@ -131,10 +131,9 @@ function initPWA() {
   const blob = new Blob([JSON.stringify(manifestJSON)], { type: 'application/json' });
   document.getElementById('dynamic-manifest').setAttribute('href', URL.createObjectURL(blob));
 
-  // V8.8: Usa ficheiro SW real em vez do Blob
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker V8.8 Registado'))
+      .then(reg => console.log('Service Worker V8.8 Registado com ficheiro real.'))
       .catch(err => console.log('Erro no SW:', err));
   }
 
@@ -373,41 +372,6 @@ async function consultarEstudante() {
   }
 }
 
-function irParaCofreComId(idAcesso) {
-    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN") && currentWalletId.toUpperCase() === idAcesso.toUpperCase()) {
-        switchView('view-wallet');
-        return;
-    }
-    
-    switchView('view-login');
-    const inputId = document.getElementById('login-id');
-    const inputSenha = document.getElementById('login-senha');
-    
-    if (inputId && idAcesso) {
-        inputId.value = idAcesso;
-    }
-    
-    if (inputSenha) {
-        setTimeout(() => { inputSenha.focus(); }, 100); 
-    }
-}
-
-function abrirTelaCofreOuEntrarDireto() {
-    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
-        switchView('view-wallet');
-    } else {
-        switchView('view-login');
-    }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const btnCarteira = document.querySelector("button.menu-card.primary-card[onclick*='view-login']");
-    if (btnCarteira) {
-        btnCarteira.onclick = abrirTelaCofreOuEntrarDireto;
-    }
-});
-
-
 function renderizarTimelineEstudante(dados, container) {
   const nomeLimpo = formatarNome(dados.nome).split(' ')[0];
   let html = `<h3 style="margin:0 0 15px 0; color:var(--primary);">Olá, ${nomeLimpo}!</h3>`;
@@ -473,7 +437,6 @@ function renderizarTimelineEstudante(dados, container) {
              <span style="font-size: 11px; color: var(--success); display:block; margin-bottom:5px; text-transform: uppercase; font-weight:700;">O seu ID de Acesso é:</span>
              <strong style="font-size: 22px; color: #065F46; letter-spacing: 2px; font-family: monospace;">${dados.idAcesso}</strong>
              <p style="font-size: 11px; color: #065F46; margin: 8px 0 0 0;">Use este ID e os 4 últimos dígitos do seu CPF para abrir o cofre digital.</p>
-             <button class="btn-solid" style="margin-top:15px;" onclick="irParaCofreComId('${dados.idAcesso}')">IR PARA O COFRE</button>
            </div>`;
         }
       } else {
@@ -501,6 +464,46 @@ let currentWalletSenha = "";
 let currentStudentName = "";
 let clockInterval = null; 
 let timeoutSessaoEstudanteID = null; 
+
+// V8.8: Acorda a RAM do estudante se a página recarregar com sessão ativa
+function restaurarSessaoEstudante() {
+    const token = localStorage.getItem("MAESTRO_EST_TOKEN");
+    const cachedDataRaw = localStorage.getItem("MAESTRO_WALLET_CACHE");
+    const credsRaw = localStorage.getItem("MAESTRO_WALLET_CREDS");
+
+    if (token && cachedDataRaw && credsRaw) {
+        try {
+            const dados = JSON.parse(cachedDataRaw);
+            const creds = JSON.parse(credsRaw);
+            currentWalletId = dados.idCarteira;
+            currentWalletSenha = creds.senha;
+            currentStudentName = dados.nome;
+            armarRelogioSessaoEstudante();
+        } catch(e) {
+            console.log("Erro ao restaurar sessão de estudante na RAM.");
+        }
+    }
+}
+
+function abrirTelaCofreOuEntrarDireto() {
+    // Se a RAM estiver preenchida e o token existir, salta o ecrã de login e injeta o HTML
+    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
+        const cachedDataRaw = localStorage.getItem("MAESTRO_WALLET_CACHE");
+        if (cachedDataRaw) {
+            renderizarCarteira(JSON.parse(cachedDataRaw));
+            switchView('view-wallet');
+            return;
+        }
+    }
+    switchView('view-login');
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const btnCarteira = document.querySelector("button.menu-card.primary-card[onclick*='view-login']");
+    if (btnCarteira) {
+        btnCarteira.onclick = abrirTelaCofreOuEntrarDireto;
+    }
+});
 
 async function loginCarteira() {
   const id = document.getElementById('login-id').value.trim();
@@ -531,7 +534,6 @@ async function loginCarteira() {
       currentWalletSenha = senha;
       currentStudentName = res.nome;
       
-      // V8.8: Guarda o token real devolvido pelo backend
       if (res.token) {
           localStorage.setItem("MAESTRO_EST_TOKEN", res.token);
       }
@@ -563,7 +565,7 @@ async function loginCarteira() {
           const resCached = JSON.parse(cachedData);
           currentStudentName = resCached.nome;
           
-          showToast("Modo Offline Ativado. A usar dados guardados.", "warning");
+          showToast("Modo Offline Ativado. Funções interativas limitadas.", "warning");
           
           renderizarCarteira(resCached);
           switchView('view-wallet');
