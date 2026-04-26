@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzvXHCYWK1x_VCis_-KZONLZ6M9cVsVkKi1UAQtua2lyv4ePx-CQUoZHeOp5FCu4zkf/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzdI-MStfcn7pr4c6ESGnqYtspzhHNOMFGX_ox80ed47sdWJrDH68vmWZBj7hly-FMW/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -649,7 +649,7 @@ function renderizarCarteira(dados) {
       actions.innerHTML = `
         <div style="display:flex; gap:10px; margin-bottom: 15px;">
            <button class="btn-solid" style="flex:1; margin:0; background: var(--primary);" onclick="verificarJanelasEmbarque()">🚐 Abrir Radar de Viagens</button>
-           <button class="btn-solid dark-bg" style="flex:1; margin:0;" onclick="abrirModalMural()">🗣️ Sugestões / Fórum</button>
+           <button class="btn-solid dark-bg" style="flex:1; margin:0;" onclick="abrirMuralDaSemana()">🗣️ Sugestões / Fórum</button>
         </div>
         <div style="text-align:center;">
            <button class="btn-text text-danger" style="font-weight: 700; font-size: 14px;" onclick="sairCarteira()">❌ Fechar Cofre Digital</button>
@@ -766,7 +766,6 @@ async function verificarJanelasEmbarque() {
       return;
    }
    
-   // V8.8 QA: Em vez de esconder o Cofre (switchView), apenas mostramos a div de Mobilidade
    const painelMob = document.getElementById('view-mobilidade');
    const containerLista = document.getElementById('lista-viagens-container');
    const painelSucesso = document.getElementById('painel-viagem-ativa');
@@ -780,7 +779,6 @@ async function verificarJanelasEmbarque() {
    }
 
    try {
-       // Rola a página suavemente para o painel de viagens
        if (painelMob) painelMob.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
        const res = await apiCall("getViagensDisponiveisPortal", { idEstudante: currentWalletId });
@@ -1236,22 +1234,38 @@ async function abrirMuralDaSemana() {
     switchView('view-mural');
     const container = document.getElementById('mural-feed');
     
-    container.innerHTML = `<div class="loader" style="margin: 0 auto;"></div><p style="text-align: center; font-size: 12px; margin-top: 10px;">A carregar a voz da comunidade...</p>`;
+    // V8.8 QA: Adiciona um botão no topo do mural para permitir novas publicações sem ter de voltar ao cofre
+    let btnNovoPostHTML = '';
+    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
+        btnNovoPostHTML = `
+        <div style="text-align: center; margin-bottom: 20px;">
+           <button class="btn-solid" style="background: var(--primary); display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: auto; padding: 10px 20px;" onclick="abrirModalMural()">
+              <span style="font-size: 16px;">📝</span> Criar Nova Publicação
+           </button>
+        </div>`;
+    } else {
+        btnNovoPostHTML = `
+        <div style="text-align: center; margin-bottom: 20px; font-size: 11px; color: var(--text-sub);">
+           Apenas estudantes logados na Carteira Digital podem publicar ou votar.
+        </div>`;
+    }
+    
+    container.innerHTML = `${btnNovoPostHTML}<div class="loader" style="margin: 0 auto;"></div><p style="text-align: center; font-size: 12px; margin-top: 10px;">A carregar a voz da comunidade...</p>`;
     
     try {
         const res = await apiCall("getMuralDaSemana");
         
         if (!res.sucesso) {
-            container.innerHTML = `<div class="error-box">${res.erro || "Não foi possível carregar o mural no momento."}</div>`;
+            container.innerHTML = `${btnNovoPostHTML}<div class="error-box">${res.erro || "Não foi possível carregar o mural no momento."}</div>`;
             return;
         }
         
         if (!res.mensagens || res.mensagens.length === 0) {
-            container.innerHTML = `<div class="text-center" style="padding: 30px 10px; color: var(--text-sub); border: 1px dashed var(--border); border-radius: 8px;">Ainda não há contribuições nos últimos 7 dias.<br><br><b>Abra o seu Cofre Digital para ser o primeiro!</b></div>`;
+            container.innerHTML = `${btnNovoPostHTML}<div class="text-center" style="padding: 30px 10px; color: var(--text-sub); border: 1px dashed var(--border); border-radius: 8px;">Ainda não há contribuições nos últimos 7 dias.<br><br><b>Seja o primeiro a partilhar uma ideia!</b></div>`;
             return;
         }
         
-        let html = '';
+        let html = btnNovoPostHTML;
         res.mensagens.forEach((msg, index) => {
             const upAtivo = currentWalletId && msg.arrayUpsInfo.includes(currentWalletId) ? 'color: var(--primary); font-weight: bold;' : 'color: #999;';
             const downAtivo = currentWalletId && msg.arrayDownsInfo.includes(currentWalletId) ? 'color: var(--danger); font-weight: bold;' : 'color: #999;';
