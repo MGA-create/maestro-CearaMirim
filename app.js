@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyLDOmRt0w58t2VD6wGN-1YUPbqUVDgeQZ9oPhCGamw1mOkiQFtFkWG0nEMHFmKxUNE/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyUR0XvdK89DlsdEeoTZk1biVmguSIReoFs0C0MH7UvXRr79vitAFGQ-8J6EIU7j1xU/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -1279,6 +1279,14 @@ function votarNoMural(idMensagem, tipoVoto) {
         return;
     }
     
+    // ANTI-SPAM: Identifica os botões
+    const btnUp = document.getElementById(`count-up-${idMensagem}`).parentNode;
+    const btnDown = document.getElementById(`count-down-${idMensagem}`).parentNode;
+    
+    // BLOQUEIO IMEDIATO: Desativa os botões mal o aluno clica para evitar votos múltiplos
+    if (btnUp) { btnUp.style.pointerEvents = 'none'; btnUp.style.opacity = '0.5'; }
+    if (btnDown) { btnDown.style.pointerEvents = 'none'; btnDown.style.opacity = '0.5'; }
+    
     const btnUpCount = document.getElementById(`count-up-${idMensagem}`);
     const btnDownCount = document.getElementById(`count-down-${idMensagem}`);
     
@@ -1290,11 +1298,20 @@ function votarNoMural(idMensagem, tipoVoto) {
         if (res.sucesso) {
             if (btnUpCount) btnUpCount.innerText = res.ups;
             if (btnDownCount) btnDownCount.innerText = res.downs;
+            // Atualiza o mural após 1 segundo para mostrar os resultados finais
             setTimeout(abrirMuralDaSemana, 1000);
         } else {
             showToast(res.erro || "O seu voto não pôde ser contabilizado.", "error");
+            // Se falhar, liberta os botões novamente
+            if (btnUp) { btnUp.style.pointerEvents = 'auto'; btnUp.style.opacity = '1'; }
+            if (btnDown) { btnDown.style.pointerEvents = 'auto'; btnDown.style.opacity = '1'; }
         }
-    }).catch(e => console.log("Falha silenciosa ao votar no mural."));
+    }).catch(e => {
+        console.log("Falha silenciosa ao votar no mural.");
+        // Em caso de quebra de internet, liberta os botões
+        if (btnUp) { btnUp.style.pointerEvents = 'auto'; btnUp.style.opacity = '1'; }
+        if (btnDown) { btnDown.style.pointerEvents = 'auto'; btnDown.style.opacity = '1'; }
+    });
 }
 
 // ========================================================================
