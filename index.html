@@ -7,22 +7,23 @@
   <title>Portal Maestro</title>
   <meta id="meta-theme-color" name="theme-color" content="#0A3D6B">
   
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Maestro">
+  <meta name="application-name" content="Maestro">
   
-  <link id="dynamic-manifest" rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json">
   <link id="apple-touch-icon" rel="apple-touch-icon" href="icone.png">
   <link rel="icon" type="image/png" href="icone.png">
   
   <link rel="stylesheet" href="style.css?v=11.0">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js" defer></script>
 </head>
 <body>
 
@@ -196,36 +197,6 @@
         <div id="res-login" class="error-box hidden"></div>
       </section>
 
-      <section id="view-mobilidade" class="view-section" style="margin-bottom: 15px;">
-         <div class="form-card" style="padding: 15px; border: 2px solid var(--primary);">
-            <div class="form-header" style="margin-bottom: 15px;">
-               <h2 style="font-size: 14px; margin-bottom: 2px;">🚌 PRÓXIMAS VIAGENS</h2>
-               <p style="font-size: 10px;">Janela de Embarque em Tempo Real</p>
-            </div>
-            
-            <div id="lista-viagens-container" style="text-align: center;">
-               <div class="loader" style="margin: 0 auto 10px auto; width: 25px; height: 25px; border-width: 3px;"></div>
-               <p style="font-size: 11px; color: var(--text-sub);">A procurar autocarros na sua rota...</p>
-            </div>
-            
-            <div id="painel-viagem-ativa" class="hidden text-center" style="background: #f0fdf4; border: 1px solid var(--success); padding: 15px; border-radius: 8px;">
-               <span style="font-size: 24px; display: block; margin-bottom: 5px;">✅</span>
-               <strong style="color: var(--success); font-size: 14px; display: block;">Check-in Confirmado!</strong>
-               <p style="font-size: 11px; color: #065F46; margin: 5px 0 15px 0;">O seu lugar está garantido nesta viagem.</p>
-               
-               <div id="box-convite-guia" style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 10px;">
-                  <strong style="font-size: 12px; display: block; color: var(--primary);">📍 Seja o Guia desta Rota!</strong>
-                  <p style="font-size: 10px; color: var(--text-sub); margin: 4px 0 10px 0;">Partilhe o seu GPS para ajudar os colegas nas próximas paragens a saber onde o autocarro está.</p>
-                  <label class="switch" style="transform: scale(0.8); transform-origin: left;">
-                    <input type="checkbox" id="toggle-guia" onchange="toggleGuiaGps(this)">
-                    <span class="slider"></span>
-                  </label>
-                  <span id="status-guia-texto" style="font-size: 11px; font-weight: bold; margin-left: 10px; vertical-align: super; color: var(--text-sub);">Desligado</span>
-               </div>
-            </div>
-         </div>
-      </section>
-
       <section id="view-wallet" class="view-section">
         <div id="wallet-container"></div>
         
@@ -239,6 +210,36 @@
            </button>
            
            <button class="btn-text text-danger" style="font-weight: 700; font-size: 14px;" onclick="sairCarteira()">❌ Fechar Cofre Digital</button>
+        </div>
+
+        <div id="view-mobilidade" style="margin-top: 25px; display: none;">
+           <div class="form-card" style="padding: 15px; border: 2px solid var(--primary);">
+              <div class="form-header" style="margin-bottom: 15px;">
+                 <h2 style="font-size: 14px; margin-bottom: 2px;">🚌 PRÓXIMAS VIAGENS</h2>
+                 <p style="font-size: 10px;">Janela de Embarque em Tempo Real</p>
+              </div>
+              
+              <div id="lista-viagens-container" style="text-align: center;">
+                 <div class="loader" style="margin: 0 auto 10px auto; width: 25px; height: 25px; border-width: 3px;"></div>
+                 <p style="font-size: 11px; color: var(--text-sub);">A procurar autocarros na sua rota...</p>
+              </div>
+              
+              <div id="painel-viagem-ativa" class="hidden text-center" style="background: #f0fdf4; border: 1px solid var(--success); padding: 15px; border-radius: 8px;">
+                 <span style="font-size: 24px; display: block; margin-bottom: 5px;">✅</span>
+                 <strong style="color: var(--success); font-size: 14px; display: block;">Check-in Confirmado!</strong>
+                 <p style="font-size: 11px; color: #065F46; margin: 5px 0 15px 0;">O seu lugar está garantido nesta viagem.</p>
+                 
+                 <div id="box-convite-guia" style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 10px;">
+                    <strong style="font-size: 12px; display: block; color: var(--primary);">📍 Seja o Guia desta Rota!</strong>
+                    <p style="font-size: 10px; color: var(--text-sub); margin: 4px 0 10px 0;">Partilhe o seu GPS para ajudar os colegas nas próximas paragens a saber onde o autocarro está.</p>
+                    <label class="switch" style="transform: scale(0.8); transform-origin: left;">
+                      <input type="checkbox" id="toggle-guia" onchange="toggleGuiaGps(this)">
+                      <span class="slider"></span>
+                    </label>
+                    <span id="status-guia-texto" style="font-size: 11px; font-weight: bold; margin-left: 10px; vertical-align: super; color: var(--text-sub);">Desligado</span>
+                 </div>
+              </div>
+           </div>
         </div>
       </section>
 
