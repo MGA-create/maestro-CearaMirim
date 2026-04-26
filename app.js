@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxr9_2GkOtGTJw5DrF0HMKVGNj7dAn_LGESr1iGIP4rXdtoRMFiJlnV0dEQ8cjuDDp2/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw7WcMEKiklegbXksrPcQmhuXW1ht8uC6-BvdYKGdu7Ccamcya4HJoD0Vp0vp18ETce/exec";
 
 async function apiCall(action, payload = {}) {
   const token = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -122,15 +122,11 @@ function initPWA() {
   const blob = new Blob([JSON.stringify(manifestJSON)], { type: 'application/json' });
   document.getElementById('dynamic-manifest').setAttribute('href', URL.createObjectURL(blob));
 
+  // V8.8: O Service Worker fantasma (blob) foi removido por razões de segurança.
+  // Agora apontamos para o ficheiro físico './sw.js' na raiz do servidor.
   if ('serviceWorker' in navigator) {
-    const swCode = `
-      self.addEventListener('install', (e) => { self.skipWaiting(); });
-      self.addEventListener('activate', (e) => { e.waitUntil(clients.claim()); });
-      self.addEventListener('fetch', (e) => { });
-    `;
-    const swBlob = new Blob([swCode], { type: 'application/javascript' });
-    navigator.serviceWorker.register(URL.createObjectURL(swBlob))
-      .then(reg => console.log('Service Worker V8.8 Registado'))
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('Service Worker V8.8 Registado com ficheiro real.'))
       .catch(err => console.log('Erro no SW:', err));
   }
 
@@ -370,6 +366,12 @@ async function consultarEstudante() {
 }
 
 function irParaCofreComId(idAcesso) {
+    // V8.8: Persistência do Estudante. Se a RAM já o conhecer, entra direto!
+    if (currentWalletId && currentWalletId.toUpperCase() === idAcesso.toUpperCase()) {
+        switchView('view-wallet');
+        return;
+    }
+    
     switchView('view-login');
     const inputId = document.getElementById('login-id');
     const inputSenha = document.getElementById('login-senha');
@@ -382,6 +384,24 @@ function irParaCofreComId(idAcesso) {
         setTimeout(() => { inputSenha.focus(); }, 100); 
     }
 }
+
+// Intercetor Global: O botão no menu do aluno para "Abrir Carteira Digital" vai primeiro verificar isto
+function abrirTelaCofreOuEntrarDireto() {
+    if (currentWalletId && currentWalletSenha) {
+        switchView('view-wallet');
+    } else {
+        switchView('view-login');
+    }
+}
+
+// Atualizamos dinamicamente o clique no botão do menu para usar o novo intercetor
+document.addEventListener("DOMContentLoaded", () => {
+    const btnCarteira = document.querySelector("button.menu-card.primary-card[onclick*='view-login']");
+    if (btnCarteira) {
+        btnCarteira.onclick = abrirTelaCofreOuEntrarDireto;
+    }
+});
+
 
 function renderizarTimelineEstudante(dados, container) {
   const nomeLimpo = formatarNome(dados.nome).split(' ')[0];
@@ -475,6 +495,7 @@ let currentWalletId = "";
 let currentWalletSenha = "";
 let currentStudentName = "";
 let clockInterval = null; 
+let timeoutSessaoEstudanteID = null; // V8.8: Relógio bomba do Aluno
 
 async function loginCarteira() {
   const id = document.getElementById('login-id').value.trim();
@@ -513,6 +534,7 @@ async function loginCarteira() {
       document.getElementById('login-id').value = '';
       document.getElementById('login-senha').value = '';
       
+      armarRelogioSessaoEstudante(); // Inicia a sessão de 3 horas
       verificarJanelasEmbarque(); 
       setTimeout(inicializarPushNotifications, 2000); 
     }
@@ -537,6 +559,8 @@ async function loginCarteira() {
           switchView('view-wallet');
           document.getElementById('login-id').value = '';
           document.getElementById('login-senha').value = '';
+          
+          armarRelogioSessaoEstudante();
           return;
        }
     }
@@ -545,6 +569,15 @@ async function loginCarteira() {
     resBox.classList.remove('hidden');
     console.error("Falha no Cofre:", err);
   }
+}
+
+function armarRelogioSessaoEstudante() {
+    if (timeoutSessaoEstudanteID) clearTimeout(timeoutSessaoEstudanteID);
+    // 3 Horas em milissegundos (10800000)
+    timeoutSessaoEstudanteID = setTimeout(() => {
+        showToast("Sessão de segurança da Carteira expirada. Por favor, aceda novamente.", "info");
+        sairCarteira(true); // true para forçar o fecho sem o toast de "Logout Manual"
+    }, 10800000);
 }
 
 function renderizarCarteira(dados) {
@@ -664,8 +697,10 @@ async function baixarDocumento(tipo, tentativa = 1) {
   }
 }
 
-function sairCarteira() {
+function sairCarteira(expiracaoSilenciosa = false) {
   if (clockInterval) clearInterval(clockInterval);
+  if (timeoutSessaoEstudanteID) clearInterval(timeoutSessaoEstudanteID);
+  
   pararTransmissaoGps(); 
   document.getElementById('wallet-container').innerHTML = ''; 
   const actions = document.getElementById('wallet-actions');
@@ -679,6 +714,7 @@ function sairCarteira() {
   if (painelMob) painelMob.style.display = 'none';
   
   switchView('view-aluno-menu'); 
+  if (!expiracaoSilenciosa) showToast("Cofre bloqueado com segurança.", "info");
 }
 
 // ========================================================================
@@ -1133,7 +1169,7 @@ async function enviarMensagemParaMural() {
         if (res.sucesso) {
             showToast(res.msg || "Mensagem partilhada com sucesso!", "success");
             fecharModalMural();
-            abrirMuralDaSemana(); // Redireciona logo para o Mural Público para ele ver a mensagem dele
+            abrirMuralDaSemana(); 
         } else {
             showToast(res.erro || "Falha ao submeter.", "error");
             btn.innerHTML = 'TENTAR NOVAMENTE';
@@ -1167,12 +1203,10 @@ async function abrirMuralDaSemana() {
         
         let html = '';
         res.mensagens.forEach((msg, index) => {
-            // Verifica se o aluno logado já votou nesta mensagem
             const upAtivo = currentWalletId && msg.arrayUpsInfo.includes(currentWalletId) ? 'color: var(--primary); font-weight: bold;' : 'color: #999;';
             const downAtivo = currentWalletId && msg.arrayDownsInfo.includes(currentWalletId) ? 'color: var(--danger); font-weight: bold;' : 'color: #999;';
             const coroa = index === 0 && msg.pontuacao > 0 ? '👑 Top Semanal' : '';
             
-            // Ícones por categoria
             let iconCat = '🗣️';
             if (msg.categoria.indexOf('Sugestão') !== -1) iconCat = '💡';
             if (msg.categoria.indexOf('Reclamação') !== -1) iconCat = '⚠️';
@@ -1215,11 +1249,9 @@ function votarNoMural(idMensagem, tipoVoto) {
         return;
     }
     
-    // UX Otimista: Dá a ilusão de que o voto computou na hora, antes do servidor confirmar
     const btnUpCount = document.getElementById(`count-up-${idMensagem}`);
     const btnDownCount = document.getElementById(`count-down-${idMensagem}`);
     
-    // Chama a API silenciosamente em background
     apiCall("votarMensagemMural", {
         idEstudante: currentWalletId,
         idMensagem: idMensagem,
@@ -1228,7 +1260,6 @@ function votarNoMural(idMensagem, tipoVoto) {
         if (res.sucesso) {
             if (btnUpCount) btnUpCount.innerText = res.ups;
             if (btnDownCount) btnDownCount.innerText = res.downs;
-            // Atualiza a visualização do mural completo em background para atualizar as cores dos botões
             setTimeout(abrirMuralDaSemana, 1000);
         } else {
             showToast(res.erro || "O seu voto não pôde ser contabilizado.", "error");
