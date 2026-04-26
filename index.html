@@ -201,16 +201,7 @@
         <div id="wallet-container"></div>
         
         <div id="wallet-actions" class="hidden" style="margin-top: 15px;">
-           <button class="menu-card outline-card" onclick="abrirModalMural()" style="margin-bottom: 15px;">
-             <span class="icon">🗣️</span>
-             <div class="info">
-               <strong>Publicar no Mural</strong>
-               <span>Sugerir ou Reclamar Rota</span>
-             </div>
-           </button>
-           
-           <button class="btn-text text-danger" style="font-weight: 700; font-size: 14px;" onclick="sairCarteira()">❌ Fechar Cofre Digital</button>
-        </div>
+           </div>
 
         <div id="view-mobilidade" style="margin-top: 25px; display: none;">
            <div class="form-card" style="padding: 15px; border: 2px solid var(--primary);">
@@ -389,24 +380,6 @@
   </div>
 
   <div id="toast"></div>
-
-  <script>
-    // ⚠️ ATENÇÃO: Substitua os valores abaixo com os dados do seu Projeto Firebase
-    const firebaseConfig = {
-      apiKey: "COLE_SUA_API_KEY",
-      authDomain: "COLE_SEU_PROJECT_ID.firebaseapp.com",
-      projectId: "COLE_SEU_PROJECT_ID",
-      storageBucket: "COLE_SEU_PROJECT_ID.appspot.com",
-      messagingSenderId: "COLE_SEU_SENDER_ID",
-      appId: "COLE_SEU_APP_ID"
-    };
-
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
-
-    window.FIREBASE_VAPID_KEY = "COLE_A_SUA_VAPID_KEY_AQUI";
-  </script>
 
   <script src="js_global.js?v=11.0"></script>
   <script src="app.js?v=11.0"></script>
