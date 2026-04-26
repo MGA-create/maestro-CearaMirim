@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyUR0XvdK89DlsdEeoTZk1biVmguSIReoFs0C0MH7UvXRr79vitAFGQ-8J6EIU7j1xU/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzvXHCYWK1x_VCis_-KZONLZ6M9cVsVkKi1UAQtua2lyv4ePx-CQUoZHeOp5FCu4zkf/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -357,6 +357,25 @@ async function consultarEstudante() {
   }
 }
 
+function irParaCofreComId(idAcesso) {
+    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN") && currentWalletId.toUpperCase() === idAcesso.toUpperCase()) {
+        switchView('view-wallet');
+        return;
+    }
+    
+    switchView('view-login');
+    const inputId = document.getElementById('login-id');
+    const inputSenha = document.getElementById('login-senha');
+    
+    if (inputId && idAcesso) {
+        inputId.value = idAcesso;
+    }
+    
+    if (inputSenha) {
+        setTimeout(() => { inputSenha.focus(); }, 100); 
+    }
+}
+
 function renderizarTimelineEstudante(dados, container) {
   const nomeLimpo = formatarNome(dados.nome).split(' ')[0];
   let html = `<h3 style="margin:0 0 15px 0; color:var(--primary);">Olá, ${nomeLimpo}!</h3>`;
@@ -422,6 +441,7 @@ function renderizarTimelineEstudante(dados, container) {
              <span style="font-size: 11px; color: var(--success); display:block; margin-bottom:5px; text-transform: uppercase; font-weight:700;">O seu ID de Acesso é:</span>
              <strong style="font-size: 22px; color: #065F46; letter-spacing: 2px; font-family: monospace;">${dados.idAcesso}</strong>
              <p style="font-size: 11px; color: #065F46; margin: 8px 0 0 0;">Use este ID e os 4 últimos dígitos do seu CPF para abrir o cofre digital.</p>
+             <button class="btn-solid" style="margin-top:15px;" onclick="irParaCofreComId('${dados.idAcesso}')">IR PARA O COFRE</button>
            </div>`;
         }
       } else {
