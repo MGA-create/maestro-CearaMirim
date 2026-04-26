@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxr9_2GkOtGTJw5DrF0HMKVGNj7dAn_LGESr1iGIP4rXdtoRMFiJlnV0dEQ8cjuDDp2/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwI5gzmVRcDeZD7oT9vWN0YFb_eI151GXVFmOfZabpakddmJQW6qNDCSTkUu9xzsy-j/exec";
 
 async function apiCall(action, payload = {}) {
   // V8.8: O interceptor agora tenta enviar o Token do Estudante se não houver o de Fiscal
