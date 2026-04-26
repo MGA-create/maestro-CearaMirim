@@ -60,6 +60,30 @@
     </div>
   </div>
 
+  <div id="modal-nova-mensagem" class="splash-overlay hidden" style="z-index: 9999; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);">
+    <div class="form-card" style="width: 90%; max-width: 400px;">
+      <div class="form-header" style="margin-bottom: 15px;">
+         <span style="font-size: 36px; display: block; margin-bottom: 5px;">🗣️</span>
+         <h2 style="color: var(--primary); font-size: 18px;">A SUA VOZ</h2>
+         <p style="font-size: 11px; line-height: 1.3;">Contribua para a comunidade. Tem o limite de 5 mensagens por semana.</p>
+      </div>
+      
+      <label class="input-label" style="text-align: left;">CATEGORIA</label>
+      <select id="mural-categoria" class="input-field" style="height: 45px;">
+         <option value="Sugestão">💡 Sugestão / Ideia</option>
+         <option value="Reclamação">⚠️ Reclamação da Rota</option>
+         <option value="Achados e Perdidos">🎒 Achados e Perdidos</option>
+         <option value="Dúvida Geral">❓ Dúvida Geral</option>
+      </select>
+      
+      <label class="input-label" style="text-align: left;">A SUA MENSAGEM (Max. 280 letras)</label>
+      <textarea id="mural-mensagem" class="input-field" rows="4" maxlength="280" placeholder="Escreva a sua contribuição de forma clara e objetiva..."></textarea>
+      
+      <button class="btn-solid" id="btn-enviar-mural" onclick="enviarMensagemParaMural()">PUBLICAR NO MURAL</button>
+      <button class="btn-text text-light" onclick="fecharModalMural()">Cancelar</button>
+    </div>
+  </div>
+
   <div class="app-wrapper">
     <header class="app-header" id="global-header">
       <img id="ui-logo" src="icone.png" alt="Logo" class="hidden">
@@ -91,6 +115,14 @@
           </div>
         </button>
 
+        <button class="menu-card outline-card" onclick="abrirMuralDaSemana()">
+          <span class="icon">🗣️</span>
+          <div class="info">
+            <strong>Voz da Comunidade</strong>
+            <span>Ver Mural da Semana</span>
+          </div>
+        </button>
+
         <button class="menu-card dark-card" onclick="switchView('view-login-fiscal')">
           <span class="icon">🔐</span>
           <div class="info">
@@ -98,6 +130,18 @@
             <span>Operadores e Fiscalização da Frota</span>
           </div>
         </button>
+      </section>
+
+      <section id="view-mural" class="view-section">
+        <div class="welcome-text" style="margin-bottom: 5px;">Mural da Semana</div>
+        <p style="font-size: 11px; color: var(--text-sub); text-align: center; margin-bottom: 20px;">Curadoria comunitária. As mensagens expiram após 7 dias.</p>
+        
+        <div id="mural-feed">
+           <div class="loader" style="margin: 0 auto;"></div>
+           <p style="text-align: center; font-size: 12px; margin-top: 10px;">A carregar a voz da comunidade...</p>
+        </div>
+
+        <button class="btn-text" onclick="switchView('view-hub')" style="margin-top: 20px;">⬅ Voltar ao Início</button>
       </section>
 
       <section id="view-aluno-menu" class="view-section">
@@ -184,6 +228,18 @@
 
       <section id="view-wallet" class="view-section">
         <div id="wallet-container"></div>
+        
+        <div id="wallet-actions" class="hidden" style="margin-top: 15px;">
+           <button class="menu-card outline-card" onclick="abrirModalMural()" style="margin-bottom: 15px;">
+             <span class="icon">🗣️</span>
+             <div class="info">
+               <strong>Publicar no Mural</strong>
+               <span>Sugerir ou Reclamar Rota</span>
+             </div>
+           </button>
+           
+           <button class="btn-text text-danger" style="font-weight: 700; font-size: 14px;" onclick="sairCarteira()">❌ Fechar Cofre Digital</button>
+        </div>
       </section>
 
       <section id="view-login-fiscal" class="view-section">
@@ -344,12 +400,10 @@
       appId: "COLE_SEU_APP_ID"
     };
 
-    // Inicializa o Firebase (se ainda não estiver inicializado)
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
 
-    // ⚠️ ATENÇÃO: Cole aqui a VAPID Key gerada na consola do Firebase (Cloud Messaging > Web Push certs)
     window.FIREBASE_VAPID_KEY = "COLE_A_SUA_VAPID_KEY_AQUI";
   </script>
 
