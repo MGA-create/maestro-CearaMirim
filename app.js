@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwI5gzmVRcDeZD7oT9vWN0YFb_eI151GXVFmOfZabpakddmJQW6qNDCSTkUu9xzsy-j/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyr5hMLrU_b3phwls4EP3KL7KFP1rfh0Sf8OxiLvI48j5l3pwBnlMct4U03GZIXtqSS/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -116,21 +116,8 @@ function ocultarSplashScreen() {
 function initPWA() {
   if(!window.PWA_NOME) return; 
 
-  const manifestJSON = {
-    "name": window.PWA_NOME,
-    "short_name": window.PWA_NOME.split(' ')[1] || window.PWA_NOME,
-    "description": "Portal Oficial de Mobilidade e Identidade Estudantil",
-    "start_url": window.location.href, 
-    "display": "standalone", 
-    "orientation": "portrait",
-    "background_color": window.BG_COLOR || "#F8F9FA",
-    "theme_color": window.THEME_COLOR || "#0A3D6B",
-    "icons": [{ "src": window.PWA_ICONE, "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }]
-  };
-
-  const blob = new Blob([JSON.stringify(manifestJSON)], { type: 'application/json' });
-  document.getElementById('dynamic-manifest').setAttribute('href', URL.createObjectURL(blob));
-
+  // V8.8: Ocultado a geração via JS. O HTML agora chama o manifest físico.
+  // Mantém-se o registo do Service Worker.
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
       .then(reg => console.log('Service Worker V8.8 Registado com ficheiro real.'))
@@ -372,6 +359,41 @@ async function consultarEstudante() {
   }
 }
 
+function irParaCofreComId(idAcesso) {
+    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN") && currentWalletId.toUpperCase() === idAcesso.toUpperCase()) {
+        switchView('view-wallet');
+        return;
+    }
+    
+    switchView('view-login');
+    const inputId = document.getElementById('login-id');
+    const inputSenha = document.getElementById('login-senha');
+    
+    if (inputId && idAcesso) {
+        inputId.value = idAcesso;
+    }
+    
+    if (inputSenha) {
+        setTimeout(() => { inputSenha.focus(); }, 100); 
+    }
+}
+
+function abrirTelaCofreOuEntrarDireto() {
+    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
+        switchView('view-wallet');
+    } else {
+        switchView('view-login');
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const btnCarteira = document.querySelector("button.menu-card.primary-card[onclick*='view-login']");
+    if (btnCarteira) {
+        btnCarteira.onclick = abrirTelaCofreOuEntrarDireto;
+    }
+});
+
+
 function renderizarTimelineEstudante(dados, container) {
   const nomeLimpo = formatarNome(dados.nome).split(' ')[0];
   let html = `<h3 style="margin:0 0 15px 0; color:var(--primary);">Olá, ${nomeLimpo}!</h3>`;
@@ -437,6 +459,7 @@ function renderizarTimelineEstudante(dados, container) {
              <span style="font-size: 11px; color: var(--success); display:block; margin-bottom:5px; text-transform: uppercase; font-weight:700;">O seu ID de Acesso é:</span>
              <strong style="font-size: 22px; color: #065F46; letter-spacing: 2px; font-family: monospace;">${dados.idAcesso}</strong>
              <p style="font-size: 11px; color: #065F46; margin: 8px 0 0 0;">Use este ID e os 4 últimos dígitos do seu CPF para abrir o cofre digital.</p>
+             <button class="btn-solid" style="margin-top:15px;" onclick="irParaCofreComId('${dados.idAcesso}')">IR PARA O COFRE</button>
            </div>`;
         }
       } else {
@@ -465,7 +488,6 @@ let currentStudentName = "";
 let clockInterval = null; 
 let timeoutSessaoEstudanteID = null; 
 
-// V8.8: Acorda a RAM do estudante se a página recarregar com sessão ativa
 function restaurarSessaoEstudante() {
     const token = localStorage.getItem("MAESTRO_EST_TOKEN");
     const cachedDataRaw = localStorage.getItem("MAESTRO_WALLET_CACHE");
@@ -484,26 +506,6 @@ function restaurarSessaoEstudante() {
         }
     }
 }
-
-function abrirTelaCofreOuEntrarDireto() {
-    // Se a RAM estiver preenchida e o token existir, salta o ecrã de login e injeta o HTML
-    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
-        const cachedDataRaw = localStorage.getItem("MAESTRO_WALLET_CACHE");
-        if (cachedDataRaw) {
-            renderizarCarteira(JSON.parse(cachedDataRaw));
-            switchView('view-wallet');
-            return;
-        }
-    }
-    switchView('view-login');
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const btnCarteira = document.querySelector("button.menu-card.primary-card[onclick*='view-login']");
-    if (btnCarteira) {
-        btnCarteira.onclick = abrirTelaCofreOuEntrarDireto;
-    }
-});
 
 async function loginCarteira() {
   const id = document.getElementById('login-id').value.trim();
@@ -637,7 +639,21 @@ function renderizarCarteira(dados) {
   </div>`;
   
   container.innerHTML = html;
-  if (actions) actions.classList.remove('hidden');
+  
+  // V8.8 QA: Adicionado o botão para ver viagens
+  if (actions) {
+      actions.innerHTML = `
+        <div style="display:flex; gap:10px; margin-bottom: 15px;">
+           <button class="btn-solid" style="flex:1; margin:0; background: var(--primary);" onclick="verificarJanelasEmbarque()">🚐 Abrir Radar de Viagens</button>
+           <button class="btn-solid dark-bg" style="flex:1; margin:0;" onclick="abrirModalMural()">🗣️ Sugestões / Fórum</button>
+        </div>
+        <div style="text-align:center;">
+           <button class="btn-text text-danger" style="font-weight: 700; font-size: 14px;" onclick="sairCarteira()">❌ Fechar Cofre Digital</button>
+        </div>
+      `;
+      actions.classList.remove('hidden');
+  }
+  
   iniciarRelogioAntiPrint('wallet-clock');
 
   const qrContainer = document.getElementById('wallet-qrcode');
@@ -742,11 +758,12 @@ let wakeLockAtivo = null;
 
 async function verificarJanelasEmbarque() {
    if (!currentWalletId) return;
-   const painelMob = document.getElementById('view-mobilidade');
+   
+   // V8.8 QA: O ecrã de Mobilidade agora é uma "View" à parte para não esmagar o Cofre
+   switchView('view-mobilidade');
    const containerLista = document.getElementById('lista-viagens-container');
    const painelSucesso = document.getElementById('painel-viagem-ativa');
    
-   if (painelMob) painelMob.style.display = 'block';
    if (painelSucesso) painelSucesso.classList.add('hidden');
    if (containerLista) {
        containerLista.innerHTML = `<div class="loader" style="margin: 0 auto 10px auto; width: 25px; height: 25px; border-width: 3px;"></div><p style="font-size: 11px; color: var(--text-sub);">A procurar autocarros...</p>`;
@@ -767,8 +784,15 @@ async function verificarJanelasEmbarque() {
            return;
        }
 
+       // V8.8 QA: Feedback inteligente se não houver viagens
        if (!res.viagens || res.viagens.length === 0) {
-           if (containerLista) containerLista.innerHTML = `<p style="font-size: 12px; color: var(--text-sub); font-weight: 500; margin:0;">Nenhum embarque previsto para agora.</p>`;
+           let msgEmpty = "Nenhum embarque previsto para agora.";
+           if (res.statusOperacao === "FORA_DE_HORARIO") {
+               msgEmpty = "<b>Fora do Horário de Embarque.</b><br>Os autocarros só aparecem aqui minutos antes da hora de partida da sua rota.";
+           } else if (res.statusOperacao === "SEM_FROTA") {
+               msgEmpty = "Não há autocarros ativos associados à sua rota neste momento.";
+           }
+           if (containerLista) containerLista.innerHTML = `<div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 8px; color: #92400e; font-size: 12px; line-height: 1.4;">${msgEmpty}</div>`;
            return;
        }
 
