@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw7WcMEKiklegbXksrPcQmhuXW1ht8uC6-BvdYKGdu7Ccamcya4HJoD0Vp0vp18ETce/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxr9_2GkOtGTJw5DrF0HMKVGNj7dAn_LGESr1iGIP4rXdtoRMFiJlnV0dEQ8cjuDDp2/exec";
 
 async function apiCall(action, payload = {}) {
   const token = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -473,6 +473,7 @@ function mostrarErroEstudante(titulo, mensagem) {
 // ========================================================================
 let currentWalletId = "";
 let currentWalletSenha = "";
+let currentStudentName = "";
 let clockInterval = null; 
 
 async function loginCarteira() {
@@ -502,6 +503,7 @@ async function loginCarteira() {
     } else if (res.sucesso) {
       currentWalletId = id;
       currentWalletSenha = senha;
+      currentStudentName = res.nome;
       
       localStorage.setItem("MAESTRO_WALLET_CACHE", JSON.stringify(res));
       localStorage.setItem("MAESTRO_WALLET_CREDS", JSON.stringify({id: id, senha: senha}));
@@ -527,6 +529,7 @@ async function loginCarteira() {
           currentWalletId = id;
           currentWalletSenha = senha;
           const resCached = JSON.parse(cachedData);
+          currentStudentName = resCached.nome;
           
           showToast("Modo Offline Ativado. A usar dados guardados.", "warning");
           
@@ -546,6 +549,7 @@ async function loginCarteira() {
 
 function renderizarCarteira(dados) {
   const container = document.getElementById('wallet-container');
+  const actions = document.getElementById('wallet-actions');
   const nomeTratado = formatarNome(dados.nome);
   const fotoHTML = dados.fotoUrl ? `<img src="${dados.fotoUrl}" class="wallet-photo">` : `<div class="wallet-photo" style="display:flex;align-items:center;justify-content:center;color:#aaa;font-size:12px;text-align:center;">Sem Foto</div>`;
   
@@ -589,6 +593,7 @@ function renderizarCarteira(dados) {
   </div>`;
   
   container.innerHTML = html;
+  if (actions) actions.classList.remove('hidden');
   iniciarRelogioAntiPrint('wallet-clock');
 
   const qrContainer = document.getElementById('wallet-qrcode');
@@ -663,8 +668,12 @@ function sairCarteira() {
   if (clockInterval) clearInterval(clockInterval);
   pararTransmissaoGps(); 
   document.getElementById('wallet-container').innerHTML = ''; 
+  const actions = document.getElementById('wallet-actions');
+  if (actions) actions.classList.add('hidden');
+  
   currentWalletId = "";
   currentWalletSenha = "";
+  currentStudentName = "";
   
   const painelMob = document.getElementById('view-mobilidade');
   if (painelMob) painelMob.style.display = 'none';
@@ -765,7 +774,6 @@ async function confirmarEmbarque(idOnibus) {
     }
 }
 
-// 5.2 RASTREAMENTO GPS (RESILIÊNCIA NAVEGADOR)
 async function toggleGuiaGps(checkbox) {
     const textoStatus = document.getElementById('status-guia-texto');
     
@@ -1084,6 +1092,148 @@ async function enviarAlarmeCriseAPI(idBus, motivo, coords) {
         btn.innerHTML = 'TENTAR NOVAMENTE';
         btn.disabled = false;
     }
+}
+
+// ========================================================================
+// 6.2 MOTOR DA COMUNIDADE (IDEIA 08: MURAL E SUGESTÕES)
+// ========================================================================
+function abrirModalMural() {
+    document.getElementById('modal-nova-mensagem').classList.remove('hidden');
+    document.getElementById('mural-mensagem').value = '';
+}
+
+function fecharModalMural() {
+    document.getElementById('modal-nova-mensagem').classList.add('hidden');
+    const btn = document.getElementById('btn-enviar-mural');
+    btn.innerHTML = 'PUBLICAR NO MURAL';
+    btn.disabled = false;
+}
+
+async function enviarMensagemParaMural() {
+    const categoria = document.getElementById('mural-categoria').value;
+    const mensagem = document.getElementById('mural-mensagem').value.trim();
+    const btn = document.getElementById('btn-enviar-mural');
+    
+    if (mensagem.length < 10) {
+        showToast("A mensagem é muito curta. Explique melhor a sua contribuição.", "error");
+        return;
+    }
+    
+    btn.innerHTML = 'A VALIDAR QUOTA... ⏳';
+    btn.disabled = true;
+
+    try {
+        const res = await apiCall("publicarMensagemMural", {
+            idEstudante: currentWalletId,
+            nomeEstudante: currentStudentName,
+            categoria: categoria,
+            mensagem: mensagem
+        });
+        
+        if (res.sucesso) {
+            showToast(res.msg || "Mensagem partilhada com sucesso!", "success");
+            fecharModalMural();
+            abrirMuralDaSemana(); // Redireciona logo para o Mural Público para ele ver a mensagem dele
+        } else {
+            showToast(res.erro || "Falha ao submeter.", "error");
+            btn.innerHTML = 'TENTAR NOVAMENTE';
+            btn.disabled = false;
+        }
+    } catch(e) {
+        showToast("Erro de comunicação com o servidor.", "error");
+        btn.innerHTML = 'TENTAR NOVAMENTE';
+        btn.disabled = false;
+    }
+}
+
+async function abrirMuralDaSemana() {
+    switchView('view-mural');
+    const container = document.getElementById('mural-feed');
+    
+    container.innerHTML = `<div class="loader" style="margin: 0 auto;"></div><p style="text-align: center; font-size: 12px; margin-top: 10px;">A carregar a voz da comunidade...</p>`;
+    
+    try {
+        const res = await apiCall("getMuralDaSemana");
+        
+        if (!res.sucesso) {
+            container.innerHTML = `<div class="error-box">Não foi possível carregar o mural no momento.</div>`;
+            return;
+        }
+        
+        if (!res.mensagens || res.mensagens.length === 0) {
+            container.innerHTML = `<div class="text-center" style="padding: 30px 10px; color: var(--text-sub); border: 1px dashed var(--border); border-radius: 8px;">Ainda não há contribuições nos últimos 7 dias.<br><br><b>Abra o seu Cofre Digital para ser o primeiro!</b></div>`;
+            return;
+        }
+        
+        let html = '';
+        res.mensagens.forEach((msg, index) => {
+            // Verifica se o aluno logado já votou nesta mensagem
+            const upAtivo = currentWalletId && msg.arrayUpsInfo.includes(currentWalletId) ? 'color: var(--primary); font-weight: bold;' : 'color: #999;';
+            const downAtivo = currentWalletId && msg.arrayDownsInfo.includes(currentWalletId) ? 'color: var(--danger); font-weight: bold;' : 'color: #999;';
+            const coroa = index === 0 && msg.pontuacao > 0 ? '👑 Top Semanal' : '';
+            
+            // Ícones por categoria
+            let iconCat = '🗣️';
+            if (msg.categoria.indexOf('Sugestão') !== -1) iconCat = '💡';
+            if (msg.categoria.indexOf('Reclamação') !== -1) iconCat = '⚠️';
+            if (msg.categoria.indexOf('Achados') !== -1) iconCat = '🎒';
+            
+            html += `
+            <div class="form-card" style="padding: 15px; margin-bottom: 15px; border-left: 4px solid var(--primary); border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: left;">
+               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                  <div>
+                     <span style="font-size: 10px; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; color: var(--text-sub);">${iconCat} ${msg.categoria}</span>
+                     ${coroa ? `<span style="font-size: 10px; background: #fef08a; padding: 2px 6px; border-radius: 4px; color: #854d0e; font-weight: bold; margin-left: 5px;">${coroa}</span>` : ''}
+                  </div>
+                  <span style="font-size: 10px; color: var(--text-sub);">${msg.data}</span>
+               </div>
+               
+               <p style="font-size: 13px; color: #333; line-height: 1.5; margin-bottom: 12px; word-wrap: break-word;">"${msg.mensagem}"</p>
+               
+               <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px;">
+                  <span style="font-size: 11px; color: var(--text-sub); font-weight: 500;">👤 Por: ${msg.autor}</span>
+                  
+                  <div style="display: flex; gap: 15px; align-items: center;">
+                     <button onclick="votarNoMural('${msg.id}', 'UP')" style="background: none; border: none; font-size: 16px; cursor: pointer; ${upAtivo} transition: transform 0.1s;">👍 <span id="count-up-${msg.id}" style="font-size: 12px;">${msg.votosUp}</span></button>
+                     <button onclick="votarNoMural('${msg.id}', 'DOWN')" style="background: none; border: none; font-size: 16px; cursor: pointer; ${downAtivo} transition: transform 0.1s;">👎 <span id="count-down-${msg.id}" style="font-size: 12px;">${msg.votosDown}</span></button>
+                  </div>
+               </div>
+            </div>`;
+        });
+        
+        container.innerHTML = html;
+        
+    } catch(e) {
+        container.innerHTML = `<div class="error-box">Erro ao comunicar com o servidor do Mural.</div>`;
+    }
+}
+
+function votarNoMural(idMensagem, tipoVoto) {
+    if (!currentWalletId) {
+        showToast("É necessário aceder ao Cofre Digital para votar nas mensagens.", "warning");
+        irParaCofreComId("");
+        return;
+    }
+    
+    // UX Otimista: Dá a ilusão de que o voto computou na hora, antes do servidor confirmar
+    const btnUpCount = document.getElementById(`count-up-${idMensagem}`);
+    const btnDownCount = document.getElementById(`count-down-${idMensagem}`);
+    
+    // Chama a API silenciosamente em background
+    apiCall("votarMensagemMural", {
+        idEstudante: currentWalletId,
+        idMensagem: idMensagem,
+        tipoVoto: tipoVoto
+    }).then(res => {
+        if (res.sucesso) {
+            if (btnUpCount) btnUpCount.innerText = res.ups;
+            if (btnDownCount) btnDownCount.innerText = res.downs;
+            // Atualiza a visualização do mural completo em background para atualizar as cores dos botões
+            setTimeout(abrirMuralDaSemana, 1000);
+        } else {
+            showToast(res.erro || "O seu voto não pôde ser contabilizado.", "error");
+        }
+    }).catch(e => console.log("Falha silenciosa ao votar no mural."));
 }
 
 // ========================================================================
