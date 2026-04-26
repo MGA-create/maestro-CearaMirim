@@ -3,13 +3,13 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwI5gzmVRcDeZD7oT9vWN0YFb_eI151GXVFmOfZabpakddmJQW6qNDCSTkUu9xzsy-j/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxr9_2GkOtGTJw5DrF0HMKVGNj7dAn_LGESr1iGIP4rXdtoRMFiJlnV0dEQ8cjuDDp2/exec";
 
 async function apiCall(action, payload = {}) {
-  // V8.8: O interceptor agora envia o token de Fiscal (prioridade) ou o de Estudante
+  // V8.8: O interceptor agora tenta enviar o Token do Estudante se não houver o de Fiscal
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
   if (!tokenToUse) {
-     tokenToUse = localStorage.getItem("MAESTRO_EST_TOKEN");
+     tokenToUse = localStorage.getItem("MAESTRO_EST_TOKEN"); // <-- ESTA É A CHAVE!
   }
   
   try {
@@ -32,7 +32,6 @@ async function apiCall(action, payload = {}) {
       if (action === "invalidarTokenSessao") {
         return { sucesso: true };
       } else {
-        // Se o erro 401 vier do token de estudante, faz o auto-logout do cofre
         if (localStorage.getItem("MAESTRO_EST_TOKEN")) {
             sairCarteira(true);
             showToast("A sua sessão de estudante expirou. Por favor, aceda novamente.", "error");
@@ -132,9 +131,10 @@ function initPWA() {
   const blob = new Blob([JSON.stringify(manifestJSON)], { type: 'application/json' });
   document.getElementById('dynamic-manifest').setAttribute('href', URL.createObjectURL(blob));
 
+  // V8.8: Usa ficheiro SW real em vez do Blob
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker V8.8 Registado com ficheiro real.'))
+      .then(reg => console.log('Service Worker V8.8 Registado'))
       .catch(err => console.log('Erro no SW:', err));
   }
 
@@ -374,8 +374,7 @@ async function consultarEstudante() {
 }
 
 function irParaCofreComId(idAcesso) {
-    // V8.8: Persistência do Estudante com Token Volátil
-    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
+    if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN") && currentWalletId.toUpperCase() === idAcesso.toUpperCase()) {
         switchView('view-wallet');
         return;
     }
@@ -532,7 +531,7 @@ async function loginCarteira() {
       currentWalletSenha = senha;
       currentStudentName = res.nome;
       
-      // V8.8: Armazena o Token Volátil devolvido pela API
+      // V8.8: Guarda o token real devolvido pelo backend
       if (res.token) {
           localStorage.setItem("MAESTRO_EST_TOKEN", res.token);
       }
@@ -564,7 +563,7 @@ async function loginCarteira() {
           const resCached = JSON.parse(cachedData);
           currentStudentName = resCached.nome;
           
-          showToast("Modo Offline Ativado. Funções interativas limitadas.", "warning");
+          showToast("Modo Offline Ativado. A usar dados guardados.", "warning");
           
           renderizarCarteira(resCached);
           switchView('view-wallet');
@@ -708,10 +707,9 @@ async function baixarDocumento(tipo, tentativa = 1) {
 }
 
 async function sairCarteira(expiracaoSilenciosa = false) {
-  // Chama a API para destruir o Token do Estudante no servidor
   try { await apiCall("invalidarTokenSessao"); } catch(e) {}
   
-  localStorage.removeItem("MAESTRO_EST_TOKEN"); // Remove o token localmente
+  localStorage.removeItem("MAESTRO_EST_TOKEN");
 
   if (clockInterval) clearInterval(clockInterval);
   if (timeoutSessaoEstudanteID) clearInterval(timeoutSessaoEstudanteID);
@@ -1258,7 +1256,7 @@ async function abrirMuralDaSemana() {
 }
 
 function votarNoMural(idMensagem, tipoVoto) {
-    if (!currentWalletId) {
+    if (!currentWalletId || !localStorage.getItem("MAESTRO_EST_TOKEN")) {
         showToast("É necessário aceder ao Cofre Digital para votar nas mensagens.", "warning");
         irParaCofreComId("");
         return;
