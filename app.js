@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzdI-MStfcn7pr4c6ESGnqYtspzhHNOMFGX_ox80ed47sdWJrDH68vmWZBj7hly-FMW/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw9x5GIPQ16-BiGbfURYgYNCRx4_fONUCNisrwhL4q6ldEKZe_prTLKNcJi6Li2Ghiq/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -1230,11 +1230,25 @@ async function enviarMensagemParaMural() {
     }
 }
 
+function calcularTempoRelativo(tsServidor) {
+    // Calcula o tempo com base no relógio do telemóvel do aluno, ignorando o servidor
+    const agoraLocal = new Date().getTime();
+    const diffEmMinutos = Math.floor((agoraLocal - tsServidor) / 60000);
+    
+    if (diffEmMinutos <= 0) return "Agora mesmo";
+    if (diffEmMinutos < 60) return diffEmMinutos + (diffEmMinutos === 1 ? " min atrás" : " mins atrás");
+    
+    const horas = Math.floor(diffEmMinutos / 60);
+    if (horas < 24) return horas + (horas === 1 ? " hora atrás" : " horas atrás");
+    
+    const dias = Math.floor(horas / 24);
+    return dias + (dias === 1 ? " dia atrás" : " dias atrás");
+}
+
 async function abrirMuralDaSemana() {
     switchView('view-mural');
     const container = document.getElementById('mural-feed');
     
-    // V8.8 QA: Adiciona um botão no topo do mural para permitir novas publicações sem ter de voltar ao cofre
     let btnNovoPostHTML = '';
     if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
         btnNovoPostHTML = `
@@ -1271,6 +1285,9 @@ async function abrirMuralDaSemana() {
             const downAtivo = currentWalletId && msg.arrayDownsInfo.includes(currentWalletId) ? 'color: var(--danger); font-weight: bold;' : 'color: #999;';
             const coroa = index === 0 && msg.pontuacao > 0 ? '👑 Top Semanal' : '';
             
+            // Corrige o fuso horário recalculando no frontend com base no Timestamp cru
+            const tempoCorrigido = calcularTempoRelativo(msg.tsMensagem);
+            
             let iconCat = '🗣️';
             if (msg.categoria.indexOf('Sugestão') !== -1) iconCat = '💡';
             if (msg.categoria.indexOf('Reclamação') !== -1) iconCat = '⚠️';
@@ -1283,7 +1300,7 @@ async function abrirMuralDaSemana() {
                      <span style="font-size: 10px; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; color: var(--text-sub);">${iconCat} ${msg.categoria}</span>
                      ${coroa ? `<span style="font-size: 10px; background: #fef08a; padding: 2px 6px; border-radius: 4px; color: #854d0e; font-weight: bold; margin-left: 5px;">${coroa}</span>` : ''}
                   </div>
-                  <span style="font-size: 10px; color: var(--text-sub);">${msg.data}</span>
+                  <span style="font-size: 10px; color: var(--text-sub);">${tempoCorrigido}</span>
                </div>
                
                <p style="font-size: 13px; color: #333; line-height: 1.5; margin-bottom: 12px; word-wrap: break-word;">"${msg.mensagem}"</p>
