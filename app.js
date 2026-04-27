@@ -1,9 +1,9 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V8.8.7 (HEADLESS REST)
+// 0. CONFIGURAÇÕES DA API V9.0.0 (HEADLESS REST)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzOtd-LbZbana8FkkQcN7Hh4Fy_1cRbeg_Gf-lC7p9lUDi_S2His4LWemxJTmHzcabU/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxvMTfCWRx9_rshuIBZ_GNDWxKb8nxwY3r3y_2-gQxzzcTHkz5mfCsX1Tq45TM_C6lx/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -118,7 +118,7 @@ function initPWA() {
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker V8.8.7 Registado.'))
+      .then(reg => console.log('Service Worker Registado.'))
       .catch(err => console.log('Erro no SW:', err));
   }
 
@@ -217,7 +217,7 @@ async function carregarAvisosSMEB() {
 // ========================================================================
 const TOKEN_KEY = "MAESTRO_OP_TOKEN";
 const CACHE_LISTA_KEY = "MAESTRO_CACHE_FISCAL"; 
-const CACHE_STATS_KEY = "MAESTRO_DASH_STATS";
+const CACHE_STATS_KEY = "MAESTRO_DASH_STATS_V9"; // Atualizado para garantir limpeza no cliente
 let timeoutSessaoID = null;
 
 async function fazerLoginOperador() {
@@ -702,7 +702,7 @@ async function sairCarteira(expiracaoSilenciosa = false) {
   if (clockInterval) clearInterval(clockInterval);
   if (timeoutSessaoEstudanteID) clearInterval(timeoutSessaoEstudanteID);
   
-  pararTransmissaoGpsE_Radar(); // Limpeza Geral da Fase 3.2
+  pararTransmissaoGpsE_Radar();
   
   document.getElementById('wallet-container').innerHTML = ''; 
   const actions = document.getElementById('wallet-actions');
@@ -720,28 +720,27 @@ async function sairCarteira(expiracaoSilenciosa = false) {
 }
 
 // ========================================================================
-// 5.1. MOTOR DE MOBILIDADE: RADAR E ETA (FASE 3.2 V8.8.7)
+// 5.1. MOTOR DE MOBILIDADE: RADAR E ETA 
 // ========================================================================
 
 let onibusSelecionadoGPS = null;
-let idIntervaloGPS = null;      // O ciclo de envio do Guia
-let idIntervaloRadar = null;    // O ciclo de leitura do Passageiro
+let idIntervaloGPS = null;      
+let idIntervaloRadar = null;    
 let wakeLockAtivo = null;
 
-// MOTOR MATEMÁTICO: FÓRMULA DE HAVERSINE
 function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Raio da Terra em km
+    const R = 6371; 
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
               Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
               Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; // Devolve a distância em linha reta (km)
+    return R * c; 
 }
 
 function calcularETA(distanciaKm) {
-    const velMediaKmH = 25; // Velocidade urbana padrão (Ceará-Mirim/Natal)
+    const velMediaKmH = 25; 
     const tempoHoras = distanciaKm / velMediaKmH;
     const tempoMinutos = Math.round(tempoHoras * 60);
     if (tempoMinutos <= 2) return "A chegar!";
@@ -759,7 +758,7 @@ async function verificarJanelasEmbarque() {
    const painelSucesso = document.getElementById('painel-viagem-ativa');
    
    if (painelMob) painelMob.style.display = 'block';
-   if (painelSucesso) painelSucesso.innerHTML = ''; // Limpa o painel anterior
+   if (painelSucesso) painelSucesso.innerHTML = ''; 
    
    if (containerLista) {
        containerLista.innerHTML = `<div class="loader" style="margin: 0 auto 10px auto; width: 25px; height: 25px; border-width: 3px;"></div><p style="font-size: 11px; color: var(--text-sub);">A procurar autocarros...</p>`;
@@ -779,7 +778,7 @@ async function verificarJanelasEmbarque() {
        if (res.emViagem) {
            if (containerLista) containerLista.classList.add('hidden');
            onibusSelecionadoGPS = res.dadosViagem.idOnibus;
-           abrirPainelViagem(); // Inicia o motor do Radar
+           abrirPainelViagem(); 
            return;
        }
 
@@ -820,7 +819,6 @@ async function verificarJanelasEmbarque() {
    }
 }
 
-// 1. O NOVO CHECK-IN SUPER RÁPIDO (Apenas Lugar, sem perguntar por GPS)
 async function confirmarEmbarque(idOnibus) {
     showToast("A processar lugar...", "loading");
     try {
@@ -830,7 +828,7 @@ async function confirmarEmbarque(idOnibus) {
             showToast("Lugar Confirmado!", "success");
             onibusSelecionadoGPS = idOnibus; 
             document.getElementById('lista-viagens-container').classList.add('hidden');
-            abrirPainelViagem(); // Transita para a visualização dinâmica
+            abrirPainelViagem(); 
         } else {
             showToast(res.erro || "Lotação atingida no momento do clique.", "error");
             verificarJanelasEmbarque(); 
@@ -840,12 +838,10 @@ async function confirmarEmbarque(idOnibus) {
     }
 }
 
-// 2. O CORAÇÃO DO RADAR: O PAINEL DE VIAGEM
 function abrirPainelViagem() {
     const painelSucesso = document.getElementById('painel-viagem-ativa');
     if (!painelSucesso) return;
     
-    // Constrói o esqueleto vazio que será preenchido pelo Atualizador
     painelSucesso.innerHTML = `
       <div style="background: var(--secondary); padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
          <h3 style="color: var(--success); margin: 0 0 10px 0; font-size: 18px;">✅ Check-in Confirmado</h3>
@@ -858,14 +854,11 @@ function abrirPainelViagem() {
     `;
     painelSucesso.classList.remove('hidden');
     
-    atualizarRadarDinamico(); // Dispara a primeira verificação
-    
-    // Inicia o ciclo do passageiro: Verifica o radar a cada 30 segundos
+    atualizarRadarDinamico(); 
     if (idIntervaloRadar) clearInterval(idIntervaloRadar);
     idIntervaloRadar = setInterval(atualizarRadarDinamico, 30000);
 }
 
-// 3. O ESPIÃO: PERGUNTA AO SERVIDOR QUEM É O GUIA
 async function atualizarRadarDinamico() {
     if (!onibusSelecionadoGPS) return;
     const boxRadar = document.getElementById('radar-dinamico-conteudo');
@@ -875,7 +868,6 @@ async function atualizarRadarDinamico() {
         const res = await apiCall("statusRadarOnibus", { idOnibus: onibusSelecionadoGPS, idEstudante: currentWalletId });
         
         if (res.isGuia) {
-            // SOU EU QUE ESTOU A GUIAR
             boxRadar.innerHTML = `
                 <div style="text-align:center;">
                    <div style="font-size: 40px; margin-bottom: 10px; animation: pulse 2s infinite;">📡</div>
@@ -884,7 +876,6 @@ async function atualizarRadarDinamico() {
                    <button onclick="abdicarSerGuia()" class="btn-solid" style="background: #ef4444; margin: 0; padding: 8px; font-size: 12px;">Parar Transmissão (Abdicar)</button>
                 </div>
             `;
-            // CSS Inline para o pulsar da antena
             if (!document.getElementById('radar-pulse-css')) {
                const style = document.createElement('style');
                style.id = 'radar-pulse-css';
@@ -893,10 +884,8 @@ async function atualizarRadarDinamico() {
             }
         } 
         else if (res.guiaAtivo && res.coordenadas) {
-            // OUTRA PESSOA É O GUIA (Sou um Passageiro Feliz)
             boxRadar.innerHTML = `<div class="loader" style="margin: 0 auto; width: 15px; height: 15px; border-width: 2px;"></div><p style="font-size: 10px; text-align: center; margin-top: 5px;">A calcular ETA...</p>`;
             
-            // Pede o GPS do telemóvel do Passageiro UMA VEZ para calcular a matemática
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     function(posPassageiro) {
@@ -925,7 +914,6 @@ async function atualizarRadarDinamico() {
                         `;
                     },
                     function(err) {
-                        // Se o passageiro recusar o GPS dele, mostramos que o autocarro está a transmitir, mas sem ETA
                         const tempoAtras = calcularTempoRelativo(res.coordenadas.ts);
                         boxRadar.innerHTML = `
                             <div style="text-align: center;">
@@ -940,7 +928,6 @@ async function atualizarRadarDinamico() {
             }
         } 
         else {
-            // NINGUÉM É O GUIA (Trono Vazio)
             boxRadar.innerHTML = `
                 <div style="text-align: center;">
                    <div style="font-size: 30px; margin-bottom: 10px; filter: grayscale(100%); opacity: 0.5;">📡</div>
@@ -955,7 +942,6 @@ async function atualizarRadarDinamico() {
     }
 }
 
-// 4. A CORRIDA PELO TRONO
 async function solicitarSerGuia() {
     showToast("A solicitar permissão ao servidor...", "loading");
     const boxRadar = document.getElementById('radar-dinamico-conteudo');
@@ -964,10 +950,10 @@ async function solicitarSerGuia() {
     try {
         const res = await apiCall("solicitarCargoGuia", { idOnibus: onibusSelecionadoGPS, idEstudante: currentWalletId });
         if (res.sucesso) {
-            iniciarTransmissaoGpsComoGuia(); // O Servidor disse SIM
+            iniciarTransmissaoGpsComoGuia(); 
         } else {
             showToast(res.erro, "warning");
-            atualizarRadarDinamico(); // O Servidor disse NÃO (já tem alguém), recarrega o ecrã do passageiro
+            atualizarRadarDinamico(); 
         }
     } catch(e) {
         showToast("Erro ao contactar o servidor.", "error");
@@ -975,7 +961,6 @@ async function solicitarSerGuia() {
     }
 }
 
-// 5. INICIAR A TRANSMISSÃO CONTÍNUA (Só para o Guia coroado)
 async function iniciarTransmissaoGpsComoGuia() {
     if (!navigator.geolocation) {
         showToast("O seu telemóvel não suporta GPS.", "error");
@@ -992,7 +977,6 @@ async function iniciarTransmissaoGpsComoGuia() {
             function(pos) {
                 enviarCoordenadaSegura(pos.coords.latitude, pos.coords.longitude);
                 
-                // Ciclo fechado do Guia: A cada 2 minutos envia para o servidor
                 if (idIntervaloGPS) clearInterval(idIntervaloGPS);
                 idIntervaloGPS = setInterval(() => {
                     navigator.geolocation.getCurrentPosition(
@@ -1002,7 +986,7 @@ async function iniciarTransmissaoGpsComoGuia() {
                 }, 120000);
                 
                 showToast("Transmissão iniciada! Você é o Guia.", "success");
-                atualizarRadarDinamico(); // Redesenha a tela para mostrar o botão vermelho de Parar
+                atualizarRadarDinamico(); 
             },
             function(err) {
                 showToast("Permissão de GPS negada. Abdicando...", "error");
@@ -1016,7 +1000,6 @@ async function iniciarTransmissaoGpsComoGuia() {
     }
 }
 
-// 6. ENVIAR COORDENADA FÍSICA PARA O SERVIDOR
 function enviarCoordenadaSegura(lat, lng) {
     if (!onibusSelecionadoGPS || !currentWalletId) return;
     
@@ -1029,25 +1012,23 @@ function enviarCoordenadaSegura(lat, lng) {
         if (res && !res.sucesso) {
             console.log("Servidor rejeitou o GPS (Timeout ou Roubo): " + res.erro);
             pararTransmissaoGpsE_Radar();
-            atualizarRadarDinamico(); // O passageiro perdeu o trono, volta à vista normal
+            atualizarRadarDinamico(); 
         }
     }).catch(e => console.log("Falha silenciosa no ping GPS."));
 }
 
-// 7. DESISTIR VOLUNTARIAMENTE DO TRONO
 async function abdicarSerGuia() {
-    pararTransmissaoGpsE_Radar(false); // Para o ciclo de envio do GPS
+    pararTransmissaoGpsE_Radar(false); 
     showToast("A libertar GPS...", "loading");
     try {
         await apiCall("abdicarCargoGuia", { idOnibus: onibusSelecionadoGPS, idEstudante: currentWalletId });
         showToast("Transmissão encerrada com segurança.", "info");
-        atualizarRadarDinamico(); // Volta à vista "Trono Vazio"
+        atualizarRadarDinamico(); 
     } catch(e) {
         atualizarRadarDinamico();
     }
 }
 
-// 8. O INTERRUPTOR DE SEGURANÇA (Mata os ciclos todos)
 function pararTransmissaoGpsE_Radar(matarRadarTambem = true) {
     if (idIntervaloGPS) { clearInterval(idIntervaloGPS); idIntervaloGPS = null; }
     if (matarRadarTambem && idIntervaloRadar) { clearInterval(idIntervaloRadar); idIntervaloRadar = null; }
@@ -1055,7 +1036,7 @@ function pararTransmissaoGpsE_Radar(matarRadarTambem = true) {
 }
 
 // ========================================================================
-// 6. MODO FISCAL - OMNI-SCANNER & BUSCA INTELIGENTE (V8.8)
+// 6. MODO FISCAL - OMNI-SCANNER & BUSCA INTELIGENTE
 // ========================================================================
 let html5QrcodeScanner = null;
 
@@ -1426,41 +1407,51 @@ function votarNoMural(idMensagem, tipoVoto) {
 }
 
 // ========================================================================
-// 7. MOTOR DO DASHBOARD ANALÍTICO
+// 7. MOTOR DO DASHBOARD ANALÍTICO (V9.0 - COM BUSINESS INTELLIGENCE)
 // ========================================================================
 let myCharts = {}; 
 
 function mudarAbaDashboard(aba) {
-  ['logistica', 'noturno', 'inclusao'].forEach(t => {
+  ['logistica', 'noturno', 'inclusao', 'analise'].forEach(t => {
     document.getElementById('tab-' + t).classList.remove('active');
     document.getElementById('dash-area-' + t).classList.add('hidden');
   });
   document.getElementById('tab-' + aba).classList.add('active');
   document.getElementById('dash-area-' + aba).classList.remove('hidden');
+  
+  if (aba === 'analise') {
+     renderizarDashboardBI(); // Desenha a Análise Cruzada se for essa a aba
+  }
 }
 
 async function carregarDashboard() {
   const cachedStatsRaw = localStorage.getItem(CACHE_STATS_KEY);
   
   if (cachedStatsRaw) {
-    renderizarDashboardUI(JSON.parse(cachedStatsRaw));
+    const st = JSON.parse(cachedStatsRaw);
+    window.dadosBI = st.dataMart || []; // Guarda o DataMart na RAM global
+    renderizarDashboardUI(st);
     switchView('view-dashboard');
+    
     apiCall("getDashboardStats").then(res => {
         if (res.sucesso) {
             localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(res.stats));
+            window.dadosBI = res.stats.dataMart || [];
             renderizarDashboardUI(res.stats); 
+            if (document.getElementById('tab-analise').classList.contains('active')) renderizarDashboardBI();
         }
     }).catch(e => console.log("Atualização falhou."));
   } else {
-    showToast("A extrair dados...", "info");
+    showToast("A extrair dados para o Dashboard...", "info");
     try {
       const res = await apiCall("getDashboardStats");
       if (!res.sucesso) return;
       localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(res.stats));
+      window.dadosBI = res.stats.dataMart || [];
       renderizarDashboardUI(res.stats);
       switchView('view-dashboard');
     } catch(err) {
-      showToast("Falha de conexão.", "error");
+      showToast("Falha de conexão com os dados analíticos.", "error");
     }
   }
 }
@@ -1471,13 +1462,52 @@ function renderizarDashboardUI(stats) {
   document.getElementById('kpi-retidos').innerText = stats.kpis.retidos;
   document.getElementById('kpi-suspensos').innerText = stats.kpis.suspensos;
 
-  const pctIA = Math.round((stats.consumo.iaUsado / stats.consumo.iaLimite) * 100);
+  const ocrUsado = stats.consumo?.ocr?.usado || 0;
+  const ocrLimite = stats.consumo?.ocr?.limite || 100;
+  const pctIA = Math.round((ocrUsado / ocrLimite) * 100);
+  
   const barraIA = document.getElementById('bar-ia-usage');
-  document.getElementById('kpi-ia-text').innerText = `${stats.consumo.iaUsado} / ${stats.consumo.iaLimite}`;
-  barraIA.style.width = Math.min(pctIA, 100) + "%";
-  barraIA.style.background = pctIA > 80 ? "var(--danger)" : "var(--accent)";
+  if (document.getElementById('kpi-ia-text')) {
+      document.getElementById('kpi-ia-text').innerText = `${ocrUsado} / ${ocrLimite}`;
+      barraIA.style.width = Math.min(pctIA, 100) + "%";
+      barraIA.style.background = pctIA > 80 ? "var(--danger)" : "var(--accent)";
+  }
 
   desenharGraficos(stats.graficos);
+}
+
+// 7.1 MOTOR DE BUSINESS INTELLIGENCE (ANÁLISE CRUZADA NO FRONTEND)
+function renderizarDashboardBI() {
+    if (!window.dadosBI || window.dadosBI.length === 0) return;
+    
+    // Obtém as caixas que o utilizador selecionou
+    const getChecked = (name) => Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value);
+    
+    const fInst = getChecked("bi_inst");
+    const fTurno = getChecked("bi_turno");
+    const fDia = getChecked("bi_dia");
+    const eixoX = document.getElementById("bi_eixo_x") ? document.getElementById("bi_eixo_x").value : "i"; // Padrão: Instituição
+    
+    // FILTRAGEM ULTRA-RÁPIDA NA RAM
+    let dadosFiltrados = window.dadosBI.filter(aluno => {
+        let passaInst = fInst.length === 0 || fInst.includes(aluno.i);
+        let passaTurno = fTurno.length === 0 || fTurno.includes(aluno.t);
+        let passaDia = fDia.length === 0 || fDia.some(diaEscolhido => (aluno.d || "").includes(diaEscolhido));
+        
+        return passaInst && passaTurno && passaDia;
+    });
+    
+    document.getElementById("bi_total").innerText = dadosFiltrados.length;
+    
+    // AGRUPAMENTO PARA O GRÁFICO (EIXO X)
+    let contagemGrafico = {};
+    dadosFiltrados.forEach(aluno => {
+        let chave = aluno[eixoX] || "Sem Registo";
+        contagemGrafico[chave] = (contagemGrafico[chave] || 0) + 1;
+    });
+    
+    const dadosOrdenados = extrairEOrdenar(contagemGrafico);
+    renderChart('chart-bi', 'bar', dadosOrdenados.labels, dadosOrdenados.data, '#F59E0B', { indexAxis: 'x' });
 }
 
 function renderChart(canvasId, type, labels, data, colors, options = {}) {
