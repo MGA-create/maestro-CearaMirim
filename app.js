@@ -1438,6 +1438,8 @@ async function carregarDashboard() {
             localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(res.stats));
             window.dadosBI = res.stats.dataMart || [];
             renderizarDashboardUI(res.stats); 
+            // Força a atualização do BI ao receber dados frescos
+            gerarChipsDinamicos(); 
             if (document.getElementById('tab-analise').classList.contains('active')) renderizarDashboardBI();
         }
     }).catch(e => console.log("Atualização falhou."));
@@ -1450,6 +1452,8 @@ async function carregarDashboard() {
       window.dadosBI = res.stats.dataMart || [];
       renderizarDashboardUI(res.stats);
       switchView('view-dashboard');
+      // Injeta os botões na primeira vez que abre
+      gerarChipsDinamicos();
     } catch(err) {
       showToast("Falha de conexão com os dados analíticos.", "error");
     }
@@ -1478,6 +1482,43 @@ function renderizarDashboardUI(stats) {
 
 // 7.1 MOTOR DE BUSINESS INTELLIGENCE (ANÁLISE CRUZADA NO FRONTEND)
 
+function gerarChipsDinamicos() {
+    if (!window.dadosBI || window.dadosBI.length === 0) return;
+
+    // 1. Extração de Valores Únicos fatiando as strings
+    let instituicoes = new Set();
+    let turnos = new Set();
+    let dias = new Set();
+
+    window.dadosBI.forEach(aluno => {
+        if(aluno.i) aluno.i.split(',').forEach(v => { if(v.trim()) instituicoes.add(v.trim()); });
+        if(aluno.t) aluno.t.split(',').forEach(v => { if(v.trim()) turnos.add(v.trim()); });
+        if(aluno.d) aluno.d.split(',').forEach(v => { if(v.trim()) dias.add(v.trim()); });
+    });
+
+    // 2. Construtor de HTML para os Chips
+    const criarHTMLChips = (setValores, grupoNome) => {
+        let html = '';
+        Array.from(setValores).sort().forEach(val => {
+            // Guarda o estado anterior (se o fiscal já tinha clicado neste filtro antes da atualização de dados)
+            const chipAntigo = document.querySelector(`span.chip-filter[data-value="${val}"][data-group="${grupoNome}"]`);
+            const classeAtiva = (chipAntigo && chipAntigo.classList.contains('chip-active')) ? 'chip-active' : '';
+            html += `<span class="chip-filter ${classeAtiva}" data-group="${grupoNome}" data-value="${val}" onclick="toggleChip(this)">${val}</span>`;
+        });
+        return html;
+    };
+
+    // 3. Injeção no DOM
+    const contInst = document.getElementById('container-chips-inst');
+    if(contInst) contInst.innerHTML = criarHTMLChips(instituicoes, "bi_inst");
+
+    const contTurno = document.getElementById('container-chips-turno');
+    if(contTurno) contTurno.innerHTML = criarHTMLChips(turnos, "bi_turno");
+
+    const contDia = document.getElementById('container-chips-dia');
+    if(contDia) contDia.innerHTML = criarHTMLChips(dias, "bi_dia");
+}
+
 function toggleChip(element) {
     element.classList.toggle('chip-active');
     renderizarDashboardBI();
@@ -1486,7 +1527,6 @@ function toggleChip(element) {
 function renderizarDashboardBI() {
     if (!window.dadosBI || window.dadosBI.length === 0) return;
     
-    // Obtém as caixas (chips) que o utilizador ativou
     const getActiveChips = (name) => Array.from(document.querySelectorAll(`span.chip-filter[data-group="${name}"].chip-active`)).map(el => el.getAttribute('data-value'));
     
     const fInst = getActiveChips("bi_inst");
@@ -1494,7 +1534,6 @@ function renderizarDashboardBI() {
     const fDia = getActiveChips("bi_dia");
     const eixoX = document.getElementById("bi_eixo_x") ? document.getElementById("bi_eixo_x").value : "i";
     
-    // FILTRAGEM (Usa match parcial para apanhar "Segunda-feira" se o chip for "Seg")
     let dadosFiltrados = window.dadosBI.filter(aluno => {
         let passaInst = fInst.length === 0 || fInst.some(i => (aluno.i || "").includes(i));
         let passaTurno = fTurno.length === 0 || fTurno.some(t => (aluno.t || "").includes(t));
@@ -1505,11 +1544,9 @@ function renderizarDashboardBI() {
     
     document.getElementById("bi_total").innerText = dadosFiltrados.length;
     
-    // AGRUPAMENTO PARA O GRÁFICO (EIXO X) - Com "Desdobramento" (Fatiar para Somar)
     let contagemGrafico = {};
     dadosFiltrados.forEach(aluno => {
         let stringBruta = aluno[eixoX] || "Sem Registo";
-        // Fatiamento mágico: Se tiver vírgula, corta e soma a cada pedaço independentemente
         let partes = stringBruta.split(',').map(p => p.trim()).filter(p => p !== "");
         
         if (partes.length === 0) {
