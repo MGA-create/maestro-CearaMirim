@@ -1,5 +1,5 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.0.5 (HEADLESS REST)
+// 0. CONFIGURAÇÕES DA API V9.0.6 (HEADLESS REST)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
@@ -1432,13 +1432,13 @@ async function carregarDashboard() {
     window.dadosBI = st.dataMart || []; 
     renderizarDashboardUI(st);
     switchView('view-dashboard');
+    gerarChipsDinamicos(); // V9.0.6: Garante chips imediatos via RAM
     
     apiCall("getDashboardStats").then(res => {
         if (res.sucesso) {
             localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(res.stats));
             window.dadosBI = res.stats.dataMart || [];
             renderizarDashboardUI(res.stats); 
-            // Força a atualização do BI ao receber dados frescos
             gerarChipsDinamicos(); 
             if (document.getElementById('tab-analise').classList.contains('active')) renderizarDashboardBI();
         }
@@ -1452,7 +1452,6 @@ async function carregarDashboard() {
       window.dadosBI = res.stats.dataMart || [];
       renderizarDashboardUI(res.stats);
       switchView('view-dashboard');
-      // Injeta os botões na primeira vez que abre
       gerarChipsDinamicos();
     } catch(err) {
       showToast("Falha de conexão com os dados analíticos.", "error");
@@ -1482,10 +1481,27 @@ function renderizarDashboardUI(stats) {
 
 // 7.1 MOTOR DE BUSINESS INTELLIGENCE (ANÁLISE CRUZADA NO FRONTEND)
 
+// Dicionário de Tradução Universal (Resolve conflitos de strings gigantes)
+const mapaDias = {
+    "segunda": "Seg", "seg": "Seg",
+    "terça": "Ter", "terca": "Ter", "ter": "Ter",
+    "quarta": "Qua", "qua": "Qua",
+    "quinta": "Qui", "qui": "Qui",
+    "sexta": "Sex", "sex": "Sex",
+    "sábado": "Sáb", "sabado": "Sáb", "sab": "Sáb", "sáb": "Sáb"
+};
+
+function normalizarDia(texto) {
+    let t = texto.toLowerCase().trim();
+    for (let chave in mapaDias) {
+        if (t.includes(chave)) return mapaDias[chave];
+    }
+    return texto.trim(); // Se não achar no dicionário, devolve o original limpo
+}
+
 function gerarChipsDinamicos() {
     if (!window.dadosBI || window.dadosBI.length === 0) return;
 
-    // 1. Extração de Valores Únicos fatiando as strings
     let instituicoes = new Set();
     let turnos = new Set();
     let dias = new Set();
@@ -1493,14 +1509,17 @@ function gerarChipsDinamicos() {
     window.dadosBI.forEach(aluno => {
         if(aluno.i) aluno.i.split(',').forEach(v => { if(v.trim()) instituicoes.add(v.trim()); });
         if(aluno.t) aluno.t.split(',').forEach(v => { if(v.trim()) turnos.add(v.trim()); });
-        if(aluno.d) aluno.d.split(',').forEach(v => { if(v.trim()) dias.add(v.trim()); });
+        if(aluno.d) {
+            aluno.d.split(',').forEach(v => {
+                let diaLimpo = normalizarDia(v);
+                if(diaLimpo) dias.add(diaLimpo);
+            });
+        }
     });
 
-    // 2. Construtor de HTML para os Chips
     const criarHTMLChips = (setValores, grupoNome) => {
         let html = '';
         Array.from(setValores).sort().forEach(val => {
-            // Guarda o estado anterior (se o fiscal já tinha clicado neste filtro antes da atualização de dados)
             const chipAntigo = document.querySelector(`span.chip-filter[data-value="${val}"][data-group="${grupoNome}"]`);
             const classeAtiva = (chipAntigo && chipAntigo.classList.contains('chip-active')) ? 'chip-active' : '';
             html += `<span class="chip-filter ${classeAtiva}" data-group="${grupoNome}" data-value="${val}" onclick="toggleChip(this)">${val}</span>`;
@@ -1508,7 +1527,6 @@ function gerarChipsDinamicos() {
         return html;
     };
 
-    // 3. Injeção no DOM
     const contInst = document.getElementById('container-chips-inst');
     if(contInst) contInst.innerHTML = criarHTMLChips(instituicoes, "bi_inst");
 
@@ -1537,7 +1555,12 @@ function renderizarDashboardBI() {
     let dadosFiltrados = window.dadosBI.filter(aluno => {
         let passaInst = fInst.length === 0 || fInst.some(i => (aluno.i || "").includes(i));
         let passaTurno = fTurno.length === 0 || fTurno.some(t => (aluno.t || "").includes(t));
-        let passaDia = fDia.length === 0 || fDia.some(d => (aluno.d || "").includes(d));
+        
+        let passaDia = fDia.length === 0;
+        if (!passaDia && aluno.d) {
+             let diasDoAlunoNormalizados = aluno.d.split(',').map(d => normalizarDia(d));
+             passaDia = fDia.some(diaEscolhido => diasDoAlunoNormalizados.includes(diaEscolhido));
+        }
         
         return passaInst && passaTurno && passaDia;
     });
@@ -1553,7 +1576,8 @@ function renderizarDashboardBI() {
              contagemGrafico["Sem Registo"] = (contagemGrafico["Sem Registo"] || 0) + 1;
         } else {
              partes.forEach(parte => {
-                 contagemGrafico[parte] = (contagemGrafico[parte] || 0) + 1;
+                 let chaveFinal = (eixoX === 'd') ? normalizarDia(parte) : parte;
+                 contagemGrafico[chaveFinal] = (contagemGrafico[chaveFinal] || 0) + 1;
              });
         }
     });
