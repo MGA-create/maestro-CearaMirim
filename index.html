@@ -17,7 +17,7 @@
   <link id="apple-touch-icon" rel="apple-touch-icon" href="icone.png">
   <link rel="icon" type="image/png" href="icone.png">
   
-  <link rel="stylesheet" href="style.css?v=11.3">
+  <link rel="stylesheet" href="style.css?v=11.4">
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript" defer></script>
@@ -360,35 +360,20 @@
                 
                 <div style="margin-bottom: 15px;">
                    <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">INSTITUIÇÕES</strong>
-                   <div class="chip-group">
-                      <span class="chip-filter" data-group="bi_inst" data-value="UFRN" onclick="toggleChip(this)">UFRN</span>
-                      <span class="chip-filter" data-group="bi_inst" data-value="ITEP" onclick="toggleChip(this)">ITEP</span>
-                      <span class="chip-filter" data-group="bi_inst" data-value="IFRN" onclick="toggleChip(this)">IFRN</span>
-                      <span class="chip-filter" data-group="bi_inst" data-value="UNP" onclick="toggleChip(this)">UNP</span>
-                      <span class="chip-filter" data-group="bi_inst" data-value="UERN" onclick="toggleChip(this)">UERN</span>
-                   </div>
+                   <div id="container-chips-inst" class="chip-group">
+                      </div>
                 </div>
 
                 <div style="margin-bottom: 15px;">
                    <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">TURNOS</strong>
-                   <div class="chip-group">
-                      <span class="chip-filter" data-group="bi_turno" data-value="Matutino" onclick="toggleChip(this)">Matutino</span>
-                      <span class="chip-filter" data-group="bi_turno" data-value="Vespertino" onclick="toggleChip(this)">Vespertino</span>
-                      <span class="chip-filter" data-group="bi_turno" data-value="Noturno" onclick="toggleChip(this)">Noturno</span>
-                      <span class="chip-filter" data-group="bi_turno" data-value="Integral" onclick="toggleChip(this)">Integral</span>
-                   </div>
+                   <div id="container-chips-turno" class="chip-group">
+                      </div>
                 </div>
                 
                 <div style="margin-bottom: 20px;">
                    <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">DIAS DA SEMANA</strong>
-                   <div class="chip-group">
-                      <span class="chip-filter" data-group="bi_dia" data-value="Seg" onclick="toggleChip(this)">Seg</span>
-                      <span class="chip-filter" data-group="bi_dia" data-value="Ter" onclick="toggleChip(this)">Ter</span>
-                      <span class="chip-filter" data-group="bi_dia" data-value="Qua" onclick="toggleChip(this)">Qua</span>
-                      <span class="chip-filter" data-group="bi_dia" data-value="Qui" onclick="toggleChip(this)">Qui</span>
-                      <span class="chip-filter" data-group="bi_dia" data-value="Sex" onclick="toggleChip(this)">Sex</span>
-                      <span class="chip-filter" data-group="bi_dia" data-value="Sáb" onclick="toggleChip(this)">Sáb</span>
-                   </div>
+                   <div id="container-chips-dia" class="chip-group">
+                      </div>
                 </div>
                 
                 <div class="chart-wrapper"><canvas id="chart-bi"></canvas></div>
@@ -424,7 +409,7 @@
 
   <div id="toast"></div>
 
-  <script src="js_global.js?v=11.3"></script>
-  <script src="app.js?v=11.3"></script>
+  <script src="js_global.js?v=11.4"></script>
+  <script src="app.js?v=11.4"></script>
 </body>
 </html>
