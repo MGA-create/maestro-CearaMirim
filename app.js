@@ -1,9 +1,9 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V8.5/V8.8 (HEADLESS REST)
+// 0. CONFIGURAÇÕES DA API V8.8.7 (HEADLESS REST)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw7ElfekiGh8qlzBloNlclRb8uOY2e7NhOUhq3MW_or9Vx7nj7w8Lx0wzRSArIhP4D9/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzOtd-LbZbana8FkkQcN7Hh4Fy_1cRbeg_Gf-lC7p9lUDi_S2His4LWemxJTmHzcabU/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -102,7 +102,7 @@ async function bootSystem() {
   ocultarSplashScreen();
   carregarAvisosSMEB(); 
   verificarSessaoAtiva();
-  restaurarSessaoEstudante(); // V8.8 QA: Recupera a RAM se a página for recarregada
+  restaurarSessaoEstudante();
 }
 
 function ocultarSplashScreen() {
@@ -118,7 +118,7 @@ function initPWA() {
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('Service Worker V8.8 Registado com ficheiro real.'))
+      .then(reg => console.log('Service Worker V8.8.7 Registado.'))
       .catch(err => console.log('Erro no SW:', err));
   }
 
@@ -259,10 +259,7 @@ async function fazerLoginOperador() {
     const resCache = await apiCall("sincronizarCacheFiscal");
     if (resCache.sucesso) {
        localStorage.setItem(CACHE_LISTA_KEY, JSON.stringify(resCache.dados));
-       
-       if (resCache.sementeDia) {
-           localStorage.setItem("MAESTRO_SEMENTE_FISCAL", resCache.sementeDia);
-       }
+       if (resCache.sementeDia) localStorage.setItem("MAESTRO_SEMENTE_FISCAL", resCache.sementeDia);
        
        btn.innerText = "AUTENTICAR";
        btn.disabled = false;
@@ -327,7 +324,7 @@ async function encerrarSessaoOperador(silencioso = false) {
 }
 
 // ========================================================================
-// 4. FLUXO DE CONSULTA DO ESTUDANTE (TIMELINE & TRANSPARÊNCIA)
+// 4. FLUXO DE CONSULTA DO ESTUDANTE
 // ========================================================================
 async function consultarEstudante() {
   const alvo = document.getElementById('id-estudante').value.trim();
@@ -367,13 +364,8 @@ function irParaCofreComId(idAcesso) {
     const inputId = document.getElementById('login-id');
     const inputSenha = document.getElementById('login-senha');
     
-    if (inputId && idAcesso) {
-        inputId.value = idAcesso;
-    }
-    
-    if (inputSenha) {
-        setTimeout(() => { inputSenha.focus(); }, 100); 
-    }
+    if (inputId && idAcesso) inputId.value = idAcesso;
+    if (inputSenha) setTimeout(() => { inputSenha.focus(); }, 100); 
 }
 
 function renderizarTimelineEstudante(dados, container) {
@@ -462,7 +454,7 @@ function mostrarErroEstudante(titulo, mensagem) {
 }
 
 // ========================================================================
-// 5. FLUXO DA CARTEIRA DIGITAL (O COFRE OFFLINE-FIRST V8.8)
+// 5. FLUXO DA CARTEIRA DIGITAL (COFRE OFFLINE-FIRST)
 // ========================================================================
 let currentWalletId = "";
 let currentWalletSenha = "";
@@ -470,7 +462,6 @@ let currentStudentName = "";
 let clockInterval = null; 
 let timeoutSessaoEstudanteID = null; 
 
-// V8.8 QA: Restaurar e redirecionar automaticamente se o utilizador der F5
 function restaurarSessaoEstudante() {
     const token = localStorage.getItem("MAESTRO_EST_TOKEN");
     const cachedDataRaw = localStorage.getItem("MAESTRO_WALLET_CACHE");
@@ -484,8 +475,6 @@ function restaurarSessaoEstudante() {
             currentWalletSenha = creds.senha;
             currentStudentName = dados.nome;
             armarRelogioSessaoEstudante();
-            
-            // Força a renderização imediata do Cofre
             abrirTelaCofreOuEntrarDireto();
         } catch(e) {
             console.log("Erro ao restaurar sessão de estudante na RAM.");
@@ -494,7 +483,6 @@ function restaurarSessaoEstudante() {
 }
 
 function abrirTelaCofreOuEntrarDireto() {
-    // Se a RAM estiver preenchida e o token existir, injeta o HTML da Carteira
     if (currentWalletId && localStorage.getItem("MAESTRO_EST_TOKEN")) {
         const cachedDataRaw = localStorage.getItem("MAESTRO_WALLET_CACHE");
         if (cachedDataRaw) {
@@ -508,9 +496,7 @@ function abrirTelaCofreOuEntrarDireto() {
 
 document.addEventListener("DOMContentLoaded", () => {
     const btnCarteira = document.querySelector("button.menu-card.primary-card[onclick*='view-login']");
-    if (btnCarteira) {
-        btnCarteira.onclick = abrirTelaCofreOuEntrarDireto;
-    }
+    if (btnCarteira) btnCarteira.onclick = abrirTelaCofreOuEntrarDireto;
 });
 
 async function loginCarteira() {
@@ -542,10 +528,7 @@ async function loginCarteira() {
       currentWalletSenha = senha;
       currentStudentName = res.nome;
       
-      if (res.token) {
-          localStorage.setItem("MAESTRO_EST_TOKEN", res.token);
-      }
-      
+      if (res.token) localStorage.setItem("MAESTRO_EST_TOKEN", res.token);
       localStorage.setItem("MAESTRO_WALLET_CACHE", JSON.stringify(res));
       localStorage.setItem("MAESTRO_WALLET_CREDS", JSON.stringify({id: id, senha: senha}));
 
@@ -572,21 +555,15 @@ async function loginCarteira() {
           const resCached = JSON.parse(cachedData);
           currentStudentName = resCached.nome;
           
-          showToast("Modo Offline Ativado. Funções interativas limitadas.", "warning");
-          
+          showToast("Modo Offline Ativado. Funções limitadas.", "warning");
           renderizarCarteira(resCached);
           switchView('view-wallet');
-          document.getElementById('login-id').value = '';
-          document.getElementById('login-senha').value = '';
-          
           armarRelogioSessaoEstudante();
           return;
        }
     }
-
-    resBox.innerText = "Falha de ligação. Necessita de internet para o primeiro acesso.";
+    resBox.innerText = "Falha de ligação. Necessita de internet.";
     resBox.classList.remove('hidden');
-    console.error("Falha no Cofre:", err);
   }
 }
 
@@ -594,7 +571,7 @@ function armarRelogioSessaoEstudante() {
     if (timeoutSessaoEstudanteID) clearTimeout(timeoutSessaoEstudanteID);
     timeoutSessaoEstudanteID = setTimeout(() => {
         sairCarteira(true); 
-        showToast("Sessão de segurança da Carteira expirada. Por favor, aceda novamente.", "info");
+        showToast("Sessão expirada. Por favor, aceda novamente.", "info");
     }, 10800000);
 }
 
@@ -620,9 +597,7 @@ function renderizarCarteira(dados) {
       <div style="background: white; padding: 10px; border-radius: 8px; display: inline-block; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
          <div id="wallet-qrcode"></div>
       </div>
-      <div style="font-size: 11px; color: var(--primary); margin-top: 8px; font-weight: 700; letter-spacing: 1px;">
-        VÁLIDO PARA EMBARQUE HOJE
-      </div>
+      <div style="font-size: 11px; color: var(--primary); margin-top: 8px; font-weight: 700; letter-spacing: 1px;">VÁLIDO PARA EMBARQUE HOJE</div>
     </div>
 
     <div class="wallet-footer">
@@ -664,16 +639,7 @@ function renderizarCarteira(dados) {
   if (qrContainer) {
       qrContainer.innerHTML = ""; 
       const semente = dados.sementeDia || new Date().toISOString().split('T')[0];
-      const payloadQR = `${dados.idCarteira}|${semente}`;
-
-      new QRCode(qrContainer, {
-          text: payloadQR,
-          width: 160,
-          height: 160,
-          colorDark : "#000000",
-          colorLight : "#ffffff", 
-          correctLevel : QRCode.CorrectLevel.H 
-      });
+      new QRCode(qrContainer, { text: `${dados.idCarteira}|${semente}`, width: 160, height: 160, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
   }
 }
 
@@ -736,7 +702,8 @@ async function sairCarteira(expiracaoSilenciosa = false) {
   if (clockInterval) clearInterval(clockInterval);
   if (timeoutSessaoEstudanteID) clearInterval(timeoutSessaoEstudanteID);
   
-  pararTransmissaoGps(); 
+  pararTransmissaoGpsE_Radar(); // Limpeza Geral da Fase 3.2
+  
   document.getElementById('wallet-container').innerHTML = ''; 
   const actions = document.getElementById('wallet-actions');
   if (actions) actions.classList.add('hidden');
@@ -753,12 +720,33 @@ async function sairCarteira(expiracaoSilenciosa = false) {
 }
 
 // ========================================================================
-// 5.1. MOTOR DE MOBILIDADE E CHECK-IN (V8.8)
+// 5.1. MOTOR DE MOBILIDADE: RADAR E ETA (FASE 3.2 V8.8.7)
 // ========================================================================
 
 let onibusSelecionadoGPS = null;
-let idIntervaloGPS = null;
+let idIntervaloGPS = null;      // O ciclo de envio do Guia
+let idIntervaloRadar = null;    // O ciclo de leitura do Passageiro
 let wakeLockAtivo = null;
+
+// MOTOR MATEMÁTICO: FÓRMULA DE HAVERSINE
+function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Raio da Terra em km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // Devolve a distância em linha reta (km)
+}
+
+function calcularETA(distanciaKm) {
+    const velMediaKmH = 25; // Velocidade urbana padrão (Ceará-Mirim/Natal)
+    const tempoHoras = distanciaKm / velMediaKmH;
+    const tempoMinutos = Math.round(tempoHoras * 60);
+    if (tempoMinutos <= 2) return "A chegar!";
+    return `~ ${tempoMinutos} min`;
+}
 
 async function verificarJanelasEmbarque() {
    if (!currentWalletId) {
@@ -771,7 +759,7 @@ async function verificarJanelasEmbarque() {
    const painelSucesso = document.getElementById('painel-viagem-ativa');
    
    if (painelMob) painelMob.style.display = 'block';
-   if (painelSucesso) painelSucesso.classList.add('hidden');
+   if (painelSucesso) painelSucesso.innerHTML = ''; // Limpa o painel anterior
    
    if (containerLista) {
        containerLista.innerHTML = `<div class="loader" style="margin: 0 auto 10px auto; width: 25px; height: 25px; border-width: 3px;"></div><p style="font-size: 11px; color: var(--text-sub);">A procurar autocarros...</p>`;
@@ -784,13 +772,14 @@ async function verificarJanelasEmbarque() {
        const res = await apiCall("getViagensDisponiveisPortal", { idEstudante: currentWalletId });
        
        if (!res.sucesso) {
-           if (containerLista) containerLista.innerHTML = `<p style="font-size: 11px; color: var(--danger);">Falha ao carregar frota.</p>`;
+           if (containerLista) containerLista.innerHTML = `<p style="font-size: 11px; color: var(--danger);">Erro: ${res.erro}</p>`;
            return;
        }
 
        if (res.emViagem) {
            if (containerLista) containerLista.classList.add('hidden');
-           if (painelSucesso) painelSucesso.classList.remove('hidden');
+           onibusSelecionadoGPS = res.dadosViagem.idOnibus;
+           abrirPainelViagem(); // Inicia o motor do Radar
            return;
        }
 
@@ -831,24 +820,17 @@ async function verificarJanelasEmbarque() {
    }
 }
 
+// 1. O NOVO CHECK-IN SUPER RÁPIDO (Apenas Lugar, sem perguntar por GPS)
 async function confirmarEmbarque(idOnibus) {
     showToast("A processar lugar...", "loading");
     try {
-        const res = await apiCall("realizarCheckInOnibus", { idOnibus: idOnibus, idEstudante: currentWalletId, querSerGuia: false });
+        const res = await apiCall("realizarCheckInOnibus", { idOnibus: idOnibus, idEstudante: currentWalletId });
         
         if (res.sucesso) {
             showToast("Lugar Confirmado!", "success");
             onibusSelecionadoGPS = idOnibus; 
-            
             document.getElementById('lista-viagens-container').classList.add('hidden');
-            const painelSucesso = document.getElementById('painel-viagem-ativa');
-            if (painelSucesso) painelSucesso.classList.remove('hidden');
-            
-            const toggle = document.getElementById('toggle-guia');
-            if (toggle) { toggle.checked = false; toggle.disabled = false; }
-            document.getElementById('status-guia-texto').innerText = "Desligado";
-            document.getElementById('status-guia-texto').style.color = "var(--text-sub)";
-            
+            abrirPainelViagem(); // Transita para a visualização dinâmica
         } else {
             showToast(res.erro || "Lotação atingida no momento do clique.", "error");
             verificarJanelasEmbarque(); 
@@ -858,57 +840,183 @@ async function confirmarEmbarque(idOnibus) {
     }
 }
 
-async function toggleGuiaGps(checkbox) {
-    const textoStatus = document.getElementById('status-guia-texto');
+// 2. O CORAÇÃO DO RADAR: O PAINEL DE VIAGEM
+function abrirPainelViagem() {
+    const painelSucesso = document.getElementById('painel-viagem-ativa');
+    if (!painelSucesso) return;
     
-    if (checkbox.checked) {
-        textoStatus.innerText = "A Iniciar Radar...";
-        textoStatus.style.color = "#F59E0B";
-        checkbox.disabled = true; 
-        
-        if (!navigator.geolocation) {
-            showToast("O seu telemóvel não suporta GPS nativo.", "error");
-            checkbox.checked = false; checkbox.disabled = false;
-            textoStatus.innerText = "Falha no GPS";
-            return;
-        }
+    // Constrói o esqueleto vazio que será preenchido pelo Atualizador
+    painelSucesso.innerHTML = `
+      <div style="background: var(--secondary); padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
+         <h3 style="color: var(--success); margin: 0 0 10px 0; font-size: 18px;">✅ Check-in Confirmado</h3>
+         <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 20px;">O seu lugar está garantido. Acompanhe a viagem no radar abaixo.</p>
+         <div id="radar-dinamico-conteudo" style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <div class="loader" style="margin: 0 auto; width: 20px; height: 20px; border-width: 2px;"></div>
+            <p style="font-size: 11px; text-align: center; margin-top: 10px; color: #666;">A sincronizar radar...</p>
+         </div>
+      </div>
+    `;
+    painelSucesso.classList.remove('hidden');
+    
+    atualizarRadarDinamico(); // Dispara a primeira verificação
+    
+    // Inicia o ciclo do passageiro: Verifica o radar a cada 30 segundos
+    if (idIntervaloRadar) clearInterval(idIntervaloRadar);
+    idIntervaloRadar = setInterval(atualizarRadarDinamico, 30000);
+}
 
-        try {
-            if ('wakeLock' in navigator) {
-                wakeLockAtivo = await navigator.wakeLock.request('screen');
+// 3. O ESPIÃO: PERGUNTA AO SERVIDOR QUEM É O GUIA
+async function atualizarRadarDinamico() {
+    if (!onibusSelecionadoGPS) return;
+    const boxRadar = document.getElementById('radar-dinamico-conteudo');
+    if (!boxRadar) return;
+
+    try {
+        const res = await apiCall("statusRadarOnibus", { idOnibus: onibusSelecionadoGPS, idEstudante: currentWalletId });
+        
+        if (res.isGuia) {
+            // SOU EU QUE ESTOU A GUIAR
+            boxRadar.innerHTML = `
+                <div style="text-align:center;">
+                   <div style="font-size: 40px; margin-bottom: 10px; animation: pulse 2s infinite;">📡</div>
+                   <h4 style="color: var(--success); margin: 0 0 5px 0;">Transmissão Ativa</h4>
+                   <p style="font-size: 11px; color: #666; margin-bottom: 15px;">O seu GPS está a guiar os seus colegas.</p>
+                   <button onclick="abdicarSerGuia()" class="btn-solid" style="background: #ef4444; margin: 0; padding: 8px; font-size: 12px;">Parar Transmissão (Abdicar)</button>
+                </div>
+            `;
+            // CSS Inline para o pulsar da antena
+            if (!document.getElementById('radar-pulse-css')) {
+               const style = document.createElement('style');
+               style.id = 'radar-pulse-css';
+               style.innerHTML = `@keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }`;
+               document.head.appendChild(style);
             }
+        } 
+        else if (res.guiaAtivo && res.coordenadas) {
+            // OUTRA PESSOA É O GUIA (Sou um Passageiro Feliz)
+            boxRadar.innerHTML = `<div class="loader" style="margin: 0 auto; width: 15px; height: 15px; border-width: 2px;"></div><p style="font-size: 10px; text-align: center; margin-top: 5px;">A calcular ETA...</p>`;
             
-            navigator.geolocation.getCurrentPosition(
-                function(pos) {
-                    enviarCoordenadaSegura(pos.coords.latitude, pos.coords.longitude);
-                    
-                    idIntervaloGPS = setInterval(() => {
-                        navigator.geolocation.getCurrentPosition(
-                            p => enviarCoordenadaSegura(p.coords.latitude, p.coords.longitude),
-                            e => console.warn("GPS perdeu sinal momentâneo")
-                        );
-                    }, 120000);
-                    
-                    textoStatus.innerText = "Transmissão Ativa 📡";
-                    textoStatus.style.color = "var(--success)";
-                    checkbox.disabled = false;
-                    showToast("Obrigado por ser o Guia desta viagem!", "success");
-                },
-                function(err) {
-                    showToast("Permissão de GPS negada.", "error");
-                    pararTransmissaoGps(checkbox);
-                },
-                { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
-            );
-        } catch (err) {
-            showToast("O ecrã não suporta modo vigilância.", "error");
-            pararTransmissaoGps(checkbox);
+            // Pede o GPS do telemóvel do Passageiro UMA VEZ para calcular a matemática
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(posPassageiro) {
+                        const distKm = calcularDistanciaHaversine(posPassageiro.coords.latitude, posPassageiro.coords.longitude, res.coordenadas.lat, res.coordenadas.lng);
+                        const tempoAtras = calcularTempoRelativo(res.coordenadas.ts);
+                        
+                        boxRadar.innerHTML = `
+                            <div style="text-align: left;">
+                               <div style="display:flex; justify-content: space-between; align-items:center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
+                                  <strong style="color: var(--primary);"><span style="font-size: 14px;">📍</span> Radar ao Vivo</strong>
+                                  <span style="font-size: 10px; background: #ecfdf5; color: #065f46; padding: 3px 6px; border-radius: 4px;">Sinal Forte</span>
+                               </div>
+                               <div style="display:flex; justify-content: space-between; margin-bottom: 5px;">
+                                  <span style="font-size: 12px; color: #666;">Distância:</span>
+                                  <strong style="font-size: 12px;">${distKm.toFixed(1)} km</strong>
+                               </div>
+                               <div style="display:flex; justify-content: space-between; margin-bottom: 10px;">
+                                  <span style="font-size: 12px; color: #666;">Chega em:</span>
+                                  <strong style="font-size: 14px; color: var(--accent);">${calcularETA(distKm)}</strong>
+                               </div>
+                               <div style="text-align: right;">
+                                  <span style="font-size: 10px; color: #999;">Última atualização: ${tempoAtras}</span>
+                               </div>
+                               <button onclick="atualizarRadarDinamico()" class="btn-text" style="width: 100%; text-align: center; padding: 8px 0 0 0; margin-top: 5px; font-size: 11px;">🔄 Atualizar Agora</button>
+                            </div>
+                        `;
+                    },
+                    function(err) {
+                        // Se o passageiro recusar o GPS dele, mostramos que o autocarro está a transmitir, mas sem ETA
+                        const tempoAtras = calcularTempoRelativo(res.coordenadas.ts);
+                        boxRadar.innerHTML = `
+                            <div style="text-align: center;">
+                               <h4 style="color: var(--primary); margin: 0 0 5px 0;">📍 Autocarro em Movimento</h4>
+                               <p style="font-size: 11px; color: #666; margin-bottom: 10px;">Ative a localização do seu dispositivo para ver a distância e o tempo estimado de chegada (ETA).</p>
+                               <span style="font-size: 10px; color: #999;">Último sinal do autocarro: ${tempoAtras}</span>
+                            </div>
+                        `;
+                    },
+                    { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+                );
+            }
+        } 
+        else {
+            // NINGUÉM É O GUIA (Trono Vazio)
+            boxRadar.innerHTML = `
+                <div style="text-align: center;">
+                   <div style="font-size: 30px; margin-bottom: 10px; filter: grayscale(100%); opacity: 0.5;">📡</div>
+                   <h4 style="color: #666; margin: 0 0 5px 0;">Radar Inativo</h4>
+                   <p style="font-size: 11px; color: #999; margin-bottom: 15px;">Nenhum colega está a partilhar o GPS. Quer assumir o rastreamento?</p>
+                   <button onclick="solicitarSerGuia()" class="btn-solid" style="background: var(--primary); margin: 0; padding: 8px; font-size: 12px;">Seja o Guia (Ligar GPS)</button>
+                </div>
+            `;
         }
-    } else {
-        pararTransmissaoGps(checkbox);
+    } catch(e) {
+        console.warn("Falha silenciosa ao ler radar.");
     }
 }
 
+// 4. A CORRIDA PELO TRONO
+async function solicitarSerGuia() {
+    showToast("A solicitar permissão ao servidor...", "loading");
+    const boxRadar = document.getElementById('radar-dinamico-conteudo');
+    if (boxRadar) boxRadar.innerHTML = `<div class="loader" style="margin: 0 auto;"></div>`;
+
+    try {
+        const res = await apiCall("solicitarCargoGuia", { idOnibus: onibusSelecionadoGPS, idEstudante: currentWalletId });
+        if (res.sucesso) {
+            iniciarTransmissaoGpsComoGuia(); // O Servidor disse SIM
+        } else {
+            showToast(res.erro, "warning");
+            atualizarRadarDinamico(); // O Servidor disse NÃO (já tem alguém), recarrega o ecrã do passageiro
+        }
+    } catch(e) {
+        showToast("Erro ao contactar o servidor.", "error");
+        atualizarRadarDinamico();
+    }
+}
+
+// 5. INICIAR A TRANSMISSÃO CONTÍNUA (Só para o Guia coroado)
+async function iniciarTransmissaoGpsComoGuia() {
+    if (!navigator.geolocation) {
+        showToast("O seu telemóvel não suporta GPS.", "error");
+        abdicarSerGuia();
+        return;
+    }
+
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLockAtivo = await navigator.wakeLock.request('screen');
+        }
+        
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                enviarCoordenadaSegura(pos.coords.latitude, pos.coords.longitude);
+                
+                // Ciclo fechado do Guia: A cada 2 minutos envia para o servidor
+                if (idIntervaloGPS) clearInterval(idIntervaloGPS);
+                idIntervaloGPS = setInterval(() => {
+                    navigator.geolocation.getCurrentPosition(
+                        p => enviarCoordenadaSegura(p.coords.latitude, p.coords.longitude),
+                        e => console.warn("GPS falhou a leitura.")
+                    );
+                }, 120000);
+                
+                showToast("Transmissão iniciada! Você é o Guia.", "success");
+                atualizarRadarDinamico(); // Redesenha a tela para mostrar o botão vermelho de Parar
+            },
+            function(err) {
+                showToast("Permissão de GPS negada. Abdicando...", "error");
+                abdicarSerGuia();
+            },
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+        );
+    } catch (err) {
+        showToast("Não foi possível aceder aos sensores do ecrã.", "error");
+        abdicarSerGuia();
+    }
+}
+
+// 6. ENVIAR COORDENADA FÍSICA PARA O SERVIDOR
 function enviarCoordenadaSegura(lat, lng) {
     if (!onibusSelecionadoGPS || !currentWalletId) return;
     
@@ -919,31 +1027,35 @@ function enviarCoordenadaSegura(lat, lng) {
         lng: lng 
     }).then(res => {
         if (res && !res.sucesso) {
-            console.log("Servidor rejeitou o GPS: " + res.erro);
-            const toggle = document.getElementById('toggle-guia');
-            pararTransmissaoGps(toggle);
+            console.log("Servidor rejeitou o GPS (Timeout ou Roubo): " + res.erro);
+            pararTransmissaoGpsE_Radar();
+            atualizarRadarDinamico(); // O passageiro perdeu o trono, volta à vista normal
         }
     }).catch(e => console.log("Falha silenciosa no ping GPS."));
 }
 
-function pararTransmissaoGps(checkboxRef) {
-    if (idIntervaloGPS) { clearInterval(idIntervaloGPS); idIntervaloGPS = null; }
-    if (wakeLockAtivo) { wakeLockAtivo.release().then(() => wakeLockAtivo = null); }
-    
-    if (checkboxRef) { 
-        checkboxRef.checked = false; 
-        checkboxRef.disabled = false; 
-    }
-    
-    const textoStatus = document.getElementById('status-guia-texto');
-    if (textoStatus) {
-        textoStatus.innerText = "Desligado";
-        textoStatus.style.color = "var(--text-sub)";
+// 7. DESISTIR VOLUNTARIAMENTE DO TRONO
+async function abdicarSerGuia() {
+    pararTransmissaoGpsE_Radar(false); // Para o ciclo de envio do GPS
+    showToast("A libertar GPS...", "loading");
+    try {
+        await apiCall("abdicarCargoGuia", { idOnibus: onibusSelecionadoGPS, idEstudante: currentWalletId });
+        showToast("Transmissão encerrada com segurança.", "info");
+        atualizarRadarDinamico(); // Volta à vista "Trono Vazio"
+    } catch(e) {
+        atualizarRadarDinamico();
     }
 }
 
+// 8. O INTERRUPTOR DE SEGURANÇA (Mata os ciclos todos)
+function pararTransmissaoGpsE_Radar(matarRadarTambem = true) {
+    if (idIntervaloGPS) { clearInterval(idIntervaloGPS); idIntervaloGPS = null; }
+    if (matarRadarTambem && idIntervaloRadar) { clearInterval(idIntervaloRadar); idIntervaloRadar = null; }
+    if (wakeLockAtivo) { wakeLockAtivo.release().then(() => wakeLockAtivo = null); }
+}
+
 // ========================================================================
-// 6. MODO FISCAL - OMNI-SCANNER & BUSCA INTELIGENTE (V8.8 ANTI-FRAUDE)
+// 6. MODO FISCAL - OMNI-SCANNER & BUSCA INTELIGENTE (V8.8)
 // ========================================================================
 let html5QrcodeScanner = null;
 
@@ -1107,7 +1219,7 @@ function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal) {
 }
 
 // ========================================================================
-// 6.1. MOTOR DE CRISES (SOS MAESTRO)
+// 6.1. MOTOR DE CRISES E MURAL (COMUNIDADE)
 // ========================================================================
 function abrirModalSOS() {
     document.getElementById('modal-sos-fiscal').classList.remove('hidden');
@@ -1157,12 +1269,7 @@ async function enviarAlarmeCriseAPI(idBus, motivo, coords) {
     btn.innerHTML = 'A COMUNICAR SECRETARIA...';
     
     try {
-        const res = await apiCall("declararEmergenciaOnibus", {
-            idRotaPlaca: idBus,
-            tipoAvaria: motivo,
-            coordenadasGps: coords
-        });
-        
+        const res = await apiCall("declararEmergenciaOnibus", { idRotaPlaca: idBus, tipoAvaria: motivo, coordenadasGps: coords });
         if (res.sucesso) {
             showToast("Emergência reportada! Alunos avisados.", "success");
             fecharModalSOS();
@@ -1178,9 +1285,6 @@ async function enviarAlarmeCriseAPI(idBus, motivo, coords) {
     }
 }
 
-// ========================================================================
-// 6.2 MOTOR DA COMUNIDADE (IDEIA 08: MURAL E SUGESTÕES)
-// ========================================================================
 function abrirModalMural() {
     document.getElementById('modal-nova-mensagem').classList.remove('hidden');
     document.getElementById('mural-mensagem').value = '';
@@ -1198,22 +1302,13 @@ async function enviarMensagemParaMural() {
     const mensagem = document.getElementById('mural-mensagem').value.trim();
     const btn = document.getElementById('btn-enviar-mural');
     
-    if (mensagem.length < 10) {
-        showToast("A mensagem é muito curta. Explique melhor a sua contribuição.", "error");
-        return;
-    }
+    if (mensagem.length < 10) { showToast("A mensagem é muito curta.", "error"); return; }
     
     btn.innerHTML = 'A VALIDAR QUOTA... ⏳';
     btn.disabled = true;
 
     try {
-        const res = await apiCall("publicarMensagemMural", {
-            idEstudante: currentWalletId,
-            nomeEstudante: currentStudentName,
-            categoria: categoria,
-            mensagem: mensagem
-        });
-        
+        const res = await apiCall("publicarMensagemMural", { idEstudante: currentWalletId, nomeEstudante: currentStudentName, categoria: categoria, mensagem: mensagem });
         if (res.sucesso) {
             showToast(res.msg || "Mensagem partilhada com sucesso!", "success");
             fecharModalMural();
@@ -1231,16 +1326,12 @@ async function enviarMensagemParaMural() {
 }
 
 function calcularTempoRelativo(tsServidor) {
-    // Calcula o tempo com base no relógio do telemóvel do aluno, ignorando o servidor
     const agoraLocal = new Date().getTime();
     const diffEmMinutos = Math.floor((agoraLocal - tsServidor) / 60000);
-    
     if (diffEmMinutos <= 0) return "Agora mesmo";
     if (diffEmMinutos < 60) return diffEmMinutos + (diffEmMinutos === 1 ? " min atrás" : " mins atrás");
-    
     const horas = Math.floor(diffEmMinutos / 60);
     if (horas < 24) return horas + (horas === 1 ? " hora atrás" : " horas atrás");
-    
     const dias = Math.floor(horas / 24);
     return dias + (dias === 1 ? " dia atrás" : " dias atrás");
 }
@@ -1258,22 +1349,14 @@ async function abrirMuralDaSemana() {
            </button>
         </div>`;
     } else {
-        btnNovoPostHTML = `
-        <div style="text-align: center; margin-bottom: 20px; font-size: 11px; color: var(--text-sub);">
-           Apenas estudantes logados na Carteira Digital podem publicar ou votar.
-        </div>`;
+        btnNovoPostHTML = `<div style="text-align: center; margin-bottom: 20px; font-size: 11px; color: var(--text-sub);">Apenas estudantes logados na Carteira Digital podem publicar ou votar.</div>`;
     }
     
     container.innerHTML = `${btnNovoPostHTML}<div class="loader" style="margin: 0 auto;"></div><p style="text-align: center; font-size: 12px; margin-top: 10px;">A carregar a voz da comunidade...</p>`;
     
     try {
         const res = await apiCall("getMuralDaSemana");
-        
-        if (!res.sucesso) {
-            container.innerHTML = `${btnNovoPostHTML}<div class="error-box">${res.erro || "Não foi possível carregar o mural no momento."}</div>`;
-            return;
-        }
-        
+        if (!res.sucesso) { container.innerHTML = `${btnNovoPostHTML}<div class="error-box">${res.erro}</div>`; return; }
         if (!res.mensagens || res.mensagens.length === 0) {
             container.innerHTML = `${btnNovoPostHTML}<div class="text-center" style="padding: 30px 10px; color: var(--text-sub); border: 1px dashed var(--border); border-radius: 8px;">Ainda não há contribuições nos últimos 7 dias.<br><br><b>Seja o primeiro a partilhar uma ideia!</b></div>`;
             return;
@@ -1284,8 +1367,6 @@ async function abrirMuralDaSemana() {
             const upAtivo = currentWalletId && msg.arrayUpsInfo.includes(currentWalletId) ? 'color: var(--primary); font-weight: bold;' : 'color: #999;';
             const downAtivo = currentWalletId && msg.arrayDownsInfo.includes(currentWalletId) ? 'color: var(--danger); font-weight: bold;' : 'color: #999;';
             const coroa = index === 0 && msg.pontuacao > 0 ? '👑 Top Semanal' : '';
-            
-            // Corrige o fuso horário recalculando no frontend com base no Timestamp cru
             const tempoCorrigido = calcularTempoRelativo(msg.tsMensagem);
             
             let iconCat = '🗣️';
@@ -1302,12 +1383,9 @@ async function abrirMuralDaSemana() {
                   </div>
                   <span style="font-size: 10px; color: var(--text-sub);">${tempoCorrigido}</span>
                </div>
-               
                <p style="font-size: 13px; color: #333; line-height: 1.5; margin-bottom: 12px; word-wrap: break-word;">"${msg.mensagem}"</p>
-               
                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px;">
                   <span style="font-size: 11px; color: var(--text-sub); font-weight: 500;">👤 Por: ${msg.autor}</span>
-                  
                   <div style="display: flex; gap: 15px; align-items: center;">
                      <button onclick="votarNoMural('${msg.id}', 'UP')" style="background: none; border: none; font-size: 16px; cursor: pointer; ${upAtivo} transition: transform 0.1s;">👍 <span id="count-up-${msg.id}" style="font-size: 12px;">${msg.votosUp}</span></button>
                      <button onclick="votarNoMural('${msg.id}', 'DOWN')" style="background: none; border: none; font-size: 16px; cursor: pointer; ${downAtivo} transition: transform 0.1s;">👎 <span id="count-down-${msg.id}" style="font-size: 12px;">${msg.votosDown}</span></button>
@@ -1315,9 +1393,7 @@ async function abrirMuralDaSemana() {
                </div>
             </div>`;
         });
-        
         container.innerHTML = html;
-        
     } catch(e) {
         container.innerHTML = `<div class="error-box">Erro ao comunicar com o servidor do Mural.</div>`;
     }
@@ -1325,41 +1401,25 @@ async function abrirMuralDaSemana() {
 
 function votarNoMural(idMensagem, tipoVoto) {
     if (!currentWalletId || !localStorage.getItem("MAESTRO_EST_TOKEN")) {
-        showToast("É necessário aceder ao Cofre Digital para votar nas mensagens.", "warning");
-        irParaCofreComId("");
+        showToast("É necessário aceder ao Cofre Digital para votar.", "warning");
         return;
     }
     
-    // ANTI-SPAM: Identifica os botões
     const btnUp = document.getElementById(`count-up-${idMensagem}`).parentNode;
     const btnDown = document.getElementById(`count-down-${idMensagem}`).parentNode;
     
-    // BLOQUEIO IMEDIATO: Desativa os botões mal o aluno clica para evitar votos múltiplos
     if (btnUp) { btnUp.style.pointerEvents = 'none'; btnUp.style.opacity = '0.5'; }
     if (btnDown) { btnDown.style.pointerEvents = 'none'; btnDown.style.opacity = '0.5'; }
     
-    const btnUpCount = document.getElementById(`count-up-${idMensagem}`);
-    const btnDownCount = document.getElementById(`count-down-${idMensagem}`);
-    
-    apiCall("votarMensagemMural", {
-        idEstudante: currentWalletId,
-        idMensagem: idMensagem,
-        tipoVoto: tipoVoto
-    }).then(res => {
+    apiCall("votarMensagemMural", { idEstudante: currentWalletId, idMensagem: idMensagem, tipoVoto: tipoVoto }).then(res => {
         if (res.sucesso) {
-            if (btnUpCount) btnUpCount.innerText = res.ups;
-            if (btnDownCount) btnDownCount.innerText = res.downs;
-            // Atualiza o mural após 1 segundo para mostrar os resultados finais
             setTimeout(abrirMuralDaSemana, 1000);
         } else {
             showToast(res.erro || "O seu voto não pôde ser contabilizado.", "error");
-            // Se falhar, liberta os botões novamente
             if (btnUp) { btnUp.style.pointerEvents = 'auto'; btnUp.style.opacity = '1'; }
             if (btnDown) { btnDown.style.pointerEvents = 'auto'; btnDown.style.opacity = '1'; }
         }
     }).catch(e => {
-        console.log("Falha silenciosa ao votar no mural.");
-        // Em caso de quebra de internet, liberta os botões
         if (btnUp) { btnUp.style.pointerEvents = 'auto'; btnUp.style.opacity = '1'; }
         if (btnDown) { btnDown.style.pointerEvents = 'auto'; btnDown.style.opacity = '1'; }
     });
@@ -1385,24 +1445,22 @@ async function carregarDashboard() {
   if (cachedStatsRaw) {
     renderizarDashboardUI(JSON.parse(cachedStatsRaw));
     switchView('view-dashboard');
-    
     apiCall("getDashboardStats").then(res => {
         if (res.sucesso) {
             localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(res.stats));
             renderizarDashboardUI(res.stats); 
         }
-    }).catch(e => console.log("Atualização de dashboard em background falhou."));
-    
+    }).catch(e => console.log("Atualização falhou."));
   } else {
-    showToast("A extrair dados do servidor...", "info");
+    showToast("A extrair dados...", "info");
     try {
       const res = await apiCall("getDashboardStats");
-      if (!res.sucesso) { showToast(res.erro || "Falha ao compilar Dashboard.", "error"); return; }
+      if (!res.sucesso) return;
       localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(res.stats));
       renderizarDashboardUI(res.stats);
       switchView('view-dashboard');
     } catch(err) {
-      showToast("Falha de conexão com a base de dados.", "error");
+      showToast("Falha de conexão.", "error");
     }
   }
 }
@@ -1430,31 +1488,8 @@ function renderChart(canvasId, type, labels, data, colors, options = {}) {
   Chart.defaults.color = '#aaaaaa';
   Chart.defaults.borderColor = '#333333';
 
-  const defaultOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: { precision: 0 } 
-      }
-    }
-  };
-
-  myCharts[canvasId] = new Chart(ctx, {
-    type: type,
-    data: { 
-      labels: labels, 
-      datasets: [{ 
-        data: data, 
-        backgroundColor: colors, 
-        borderRadius: (type === 'bar' ? 4 : 0), 
-        borderWidth: 0 
-      }] 
-    },
-    options: Object.assign(defaultOptions, options)
-  });
+  const defaultOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } };
+  myCharts[canvasId] = new Chart(ctx, { type: type, data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderRadius: (type === 'bar' ? 4 : 0), borderWidth: 0 }] }, options: Object.assign(defaultOptions, options) });
 }
 
 function extrairEOrdenar(obj) {
@@ -1487,7 +1522,6 @@ function desenharGraficos(graficos) {
 // ========================================================================
 
 async function inicializarPushNotifications() {
-  // V8.8 QA: Inicialização transferida do HTML para cá para evitar erros de 'defer'
   const firebaseConfig = {
     apiKey: "COLE_SUA_API_KEY",
     authDomain: "COLE_SEU_PROJECT_ID.firebaseapp.com",
@@ -1517,7 +1551,6 @@ async function inicializarPushNotifications() {
     
     if (permission === 'granted') {
       const token = await messaging.getToken({ vapidKey: window.FIREBASE_VAPID_KEY });
-      
       if (token) {
          const tokenSalvoLocal = localStorage.getItem("MAESTRO_FCM_TOKEN");
          if (token !== tokenSalvoLocal || !localStorage.getItem("FCM_SYNCED_ID")) {
@@ -1532,21 +1565,13 @@ async function inicializarPushNotifications() {
 
 async function registrarTokenPush(token) {
   if (!currentWalletId) return;
-
   try {
-     const res = await apiCall("registrarPushToken", { 
-         idEstudante: currentWalletId, 
-         pushToken: token 
-     });
-     
+     const res = await apiCall("registrarPushToken", { idEstudante: currentWalletId, pushToken: token });
      if (res.sucesso) {
         localStorage.setItem("MAESTRO_FCM_TOKEN", token);
         localStorage.setItem("FCM_SYNCED_ID", currentWalletId);
-        console.log("📱 Push Token registado com sucesso para a base de dados.");
      }
-  } catch (err) {
-     console.error("Falha ao registar o Push Token no Backend.");
-  }
+  } catch (err) {}
 }
 
 window.onload = function() {
