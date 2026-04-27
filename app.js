@@ -1,5 +1,5 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.0.0 (HEADLESS REST)
+// 0. CONFIGURAÇÕES DA API V9.0.5 (HEADLESS REST)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
@@ -217,7 +217,7 @@ async function carregarAvisosSMEB() {
 // ========================================================================
 const TOKEN_KEY = "MAESTRO_OP_TOKEN";
 const CACHE_LISTA_KEY = "MAESTRO_CACHE_FISCAL"; 
-const CACHE_STATS_KEY = "MAESTRO_DASH_STATS_V9"; // Atualizado para garantir limpeza no cliente
+const CACHE_STATS_KEY = "MAESTRO_DASH_STATS_V9"; 
 let timeoutSessaoID = null;
 
 async function fazerLoginOperador() {
@@ -1420,7 +1420,7 @@ function mudarAbaDashboard(aba) {
   document.getElementById('dash-area-' + aba).classList.remove('hidden');
   
   if (aba === 'analise') {
-     renderizarDashboardBI(); // Desenha a Análise Cruzada se for essa a aba
+     renderizarDashboardBI(); 
   }
 }
 
@@ -1429,7 +1429,7 @@ async function carregarDashboard() {
   
   if (cachedStatsRaw) {
     const st = JSON.parse(cachedStatsRaw);
-    window.dadosBI = st.dataMart || []; // Guarda o DataMart na RAM global
+    window.dadosBI = st.dataMart || []; 
     renderizarDashboardUI(st);
     switchView('view-dashboard');
     
@@ -1477,33 +1477,48 @@ function renderizarDashboardUI(stats) {
 }
 
 // 7.1 MOTOR DE BUSINESS INTELLIGENCE (ANÁLISE CRUZADA NO FRONTEND)
+
+function toggleChip(element) {
+    element.classList.toggle('chip-active');
+    renderizarDashboardBI();
+}
+
 function renderizarDashboardBI() {
     if (!window.dadosBI || window.dadosBI.length === 0) return;
     
-    // Obtém as caixas que o utilizador selecionou
-    const getChecked = (name) => Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value);
+    // Obtém as caixas (chips) que o utilizador ativou
+    const getActiveChips = (name) => Array.from(document.querySelectorAll(`span.chip-filter[data-group="${name}"].chip-active`)).map(el => el.getAttribute('data-value'));
     
-    const fInst = getChecked("bi_inst");
-    const fTurno = getChecked("bi_turno");
-    const fDia = getChecked("bi_dia");
-    const eixoX = document.getElementById("bi_eixo_x") ? document.getElementById("bi_eixo_x").value : "i"; // Padrão: Instituição
+    const fInst = getActiveChips("bi_inst");
+    const fTurno = getActiveChips("bi_turno");
+    const fDia = getActiveChips("bi_dia");
+    const eixoX = document.getElementById("bi_eixo_x") ? document.getElementById("bi_eixo_x").value : "i";
     
-    // FILTRAGEM ULTRA-RÁPIDA NA RAM
+    // FILTRAGEM (Usa match parcial para apanhar "Segunda-feira" se o chip for "Seg")
     let dadosFiltrados = window.dadosBI.filter(aluno => {
-        let passaInst = fInst.length === 0 || fInst.includes(aluno.i);
-        let passaTurno = fTurno.length === 0 || fTurno.includes(aluno.t);
-        let passaDia = fDia.length === 0 || fDia.some(diaEscolhido => (aluno.d || "").includes(diaEscolhido));
+        let passaInst = fInst.length === 0 || fInst.some(i => (aluno.i || "").includes(i));
+        let passaTurno = fTurno.length === 0 || fTurno.some(t => (aluno.t || "").includes(t));
+        let passaDia = fDia.length === 0 || fDia.some(d => (aluno.d || "").includes(d));
         
         return passaInst && passaTurno && passaDia;
     });
     
     document.getElementById("bi_total").innerText = dadosFiltrados.length;
     
-    // AGRUPAMENTO PARA O GRÁFICO (EIXO X)
+    // AGRUPAMENTO PARA O GRÁFICO (EIXO X) - Com "Desdobramento" (Fatiar para Somar)
     let contagemGrafico = {};
     dadosFiltrados.forEach(aluno => {
-        let chave = aluno[eixoX] || "Sem Registo";
-        contagemGrafico[chave] = (contagemGrafico[chave] || 0) + 1;
+        let stringBruta = aluno[eixoX] || "Sem Registo";
+        // Fatiamento mágico: Se tiver vírgula, corta e soma a cada pedaço independentemente
+        let partes = stringBruta.split(',').map(p => p.trim()).filter(p => p !== "");
+        
+        if (partes.length === 0) {
+             contagemGrafico["Sem Registo"] = (contagemGrafico["Sem Registo"] || 0) + 1;
+        } else {
+             partes.forEach(parte => {
+                 contagemGrafico[parte] = (contagemGrafico[parte] || 0) + 1;
+             });
+        }
     });
     
     const dadosOrdenados = extrairEOrdenar(contagemGrafico);
