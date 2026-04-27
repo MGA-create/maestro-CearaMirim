@@ -17,7 +17,7 @@
   <link id="apple-touch-icon" rel="apple-touch-icon" href="icone.png">
   <link rel="icon" type="image/png" href="icone.png">
   
-  <link rel="stylesheet" href="style.css?v=11.1">
+  <link rel="stylesheet" href="style.css?v=11.2">
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript" defer></script>
@@ -200,8 +200,7 @@
       <section id="view-wallet" class="view-section">
         <div id="wallet-container"></div>
         
-        <div id="wallet-actions" class="hidden" style="margin-top: 15px;">
-           </div>
+        <div id="wallet-actions" class="hidden" style="margin-top: 15px;"></div>
 
         <div id="view-mobilidade" style="margin-top: 25px; display: none;">
            <div class="form-card" style="padding: 15px; border: 2px solid var(--primary);">
@@ -320,14 +319,15 @@
 
           <div class="dash-box">
             <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px;">
-              <span>Motor Gemini IA (Uso Diário)</span>
+              <span>Motor Gemini IA (Gasto/Limite OCR)</span>
               <strong id="kpi-ia-text" style="color: var(--accent);">- / -</strong>
             </div>
             <div class="progress-track"><div id="bar-ia-usage" class="progress-fill" style="width: 0%;"></div></div>
           </div>
 
-          <div class="dash-tabs">
-            <button class="dash-tab active" id="tab-logistica" onclick="mudarAbaDashboard('logistica')">Logística</button>
+          <div class="dash-tabs" style="margin-bottom: 10px;">
+            <button class="dash-tab active" id="tab-logistica" onclick="mudarAbaDashboard('logistica')">Visão Geral</button>
+            <button class="dash-tab" id="tab-analise" onclick="mudarAbaDashboard('analise')">BI (Cruzamento)</button>
             <button class="dash-tab" id="tab-noturno" onclick="mudarAbaDashboard('noturno')">Rotas 23h</button>
             <button class="dash-tab" id="tab-inclusao" onclick="mudarAbaDashboard('inclusao')">Inclusão</button>
           </div>
@@ -337,6 +337,61 @@
             <div class="dash-box"><h3>Dias de Utilização</h3><div class="chart-wrapper"><canvas id="chart-dias"></canvas></div></div>
             <div class="dash-box"><h3>Turnos</h3><div class="chart-wrapper"><canvas id="chart-turnos"></canvas></div></div>
             <div class="dash-box"><h3>Rotas Ativas</h3><div class="chart-wrapper"><canvas id="chart-rotas"></canvas></div></div>
+          </div>
+
+          <div id="dash-area-analise" class="hidden">
+             <div class="dash-box" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+                <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 15px; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 10px;">
+                   <h3 style="margin:0; color:var(--accent);">🔍 Análise Livre</h3>
+                   <div style="text-align: right;">
+                      <span style="font-size: 10px; color:#999; display:block;">Estudantes Encontrados</span>
+                      <strong id="bi_total" style="font-size: 24px; color:#10B981;">0</strong>
+                   </div>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                   <label style="font-size: 11px; color:#aaa; display:block; margin-bottom: 5px;">AGRUPAR GRÁFICO POR (EIXO X)</label>
+                   <select id="bi_eixo_x" onchange="renderizarDashboardBI()" style="width: 100%; padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; font-size: 13px;">
+                      <option value="r">Rota</option>
+                      <option value="i">Instituição</option>
+                      <option value="t">Turno</option>
+                   </select>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                   <div style="background: #222; padding: 10px; border-radius: 6px;">
+                      <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">INSTITUIÇÕES</strong>
+                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_inst" value="UFRN" onchange="renderizarDashboardBI()"> UFRN</label>
+                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_inst" value="ITEP" onchange="renderizarDashboardBI()"> ITEP</label>
+                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_inst" value="IFRN" onchange="renderizarDashboardBI()"> IFRN</label>
+                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_inst" value="UNP" onchange="renderizarDashboardBI()"> UNP</label>
+                      <label style="font-size: 12px; display:block; cursor:pointer;"><input type="checkbox" name="bi_inst" value="UERN" onchange="renderizarDashboardBI()"> UERN</label>
+                   </div>
+                   
+                   <div style="background: #222; padding: 10px; border-radius: 6px;">
+                      <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">TURNOS</strong>
+                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_turno" value="Matutino" onchange="renderizarDashboardBI()"> Matutino</label>
+                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_turno" value="Vespertino" onchange="renderizarDashboardBI()"> Vespertino</label>
+                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_turno" value="Noturno" onchange="renderizarDashboardBI()"> Noturno</label>
+                      <label style="font-size: 12px; display:block; cursor:pointer;"><input type="checkbox" name="bi_turno" value="Integral" onchange="renderizarDashboardBI()"> Integral</label>
+                   </div>
+                </div>
+                
+                <div style="background: #222; padding: 10px; border-radius: 6px; margin-bottom: 20px;">
+                   <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">DIAS DA SEMANA</strong>
+                   <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Seg" onchange="renderizarDashboardBI()"> Seg</label>
+                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Ter" onchange="renderizarDashboardBI()"> Ter</label>
+                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Qua" onchange="renderizarDashboardBI()"> Qua</label>
+                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Qui" onchange="renderizarDashboardBI()"> Qui</label>
+                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Sex" onchange="renderizarDashboardBI()"> Sex</label>
+                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Sáb" onchange="renderizarDashboardBI()"> Sáb</label>
+                   </div>
+                </div>
+                
+                <div class="chart-wrapper"><canvas id="chart-bi"></canvas></div>
+                <p style="font-size: 10px; color: #666; text-align: center; margin-top: 10px;">Dica: Se não selecionar nenhum filtro numa categoria, o sistema assumirá "Todos".</p>
+             </div>
           </div>
 
           <div id="dash-area-noturno" class="hidden">
@@ -367,7 +422,7 @@
 
   <div id="toast"></div>
 
-  <script src="js_global.js?v=11.1"></script>
-  <script src="app.js?v=11.1"></script>
+  <script src="js_global.js?v=11.2"></script>
+  <script src="app.js?v=11.2"></script>
 </body>
 </html>
