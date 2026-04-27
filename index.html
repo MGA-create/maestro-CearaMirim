@@ -17,7 +17,7 @@
   <link id="apple-touch-icon" rel="apple-touch-icon" href="icone.png">
   <link rel="icon" type="image/png" href="icone.png">
   
-  <link rel="stylesheet" href="style.css?v=11.2">
+  <link rel="stylesheet" href="style.css?v=11.3">
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript" defer></script>
@@ -353,39 +353,41 @@
                    <label style="font-size: 11px; color:#aaa; display:block; margin-bottom: 5px;">AGRUPAR GRÁFICO POR (EIXO X)</label>
                    <select id="bi_eixo_x" onchange="renderizarDashboardBI()" style="width: 100%; padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; font-size: 13px;">
                       <option value="r">Rota</option>
-                      <option value="i">Instituição</option>
+                      <option value="i" selected>Instituição</option>
                       <option value="t">Turno</option>
                    </select>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                   <div style="background: #222; padding: 10px; border-radius: 6px;">
-                      <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">INSTITUIÇÕES</strong>
-                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_inst" value="UFRN" onchange="renderizarDashboardBI()"> UFRN</label>
-                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_inst" value="ITEP" onchange="renderizarDashboardBI()"> ITEP</label>
-                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_inst" value="IFRN" onchange="renderizarDashboardBI()"> IFRN</label>
-                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_inst" value="UNP" onchange="renderizarDashboardBI()"> UNP</label>
-                      <label style="font-size: 12px; display:block; cursor:pointer;"><input type="checkbox" name="bi_inst" value="UERN" onchange="renderizarDashboardBI()"> UERN</label>
+                <div style="margin-bottom: 15px;">
+                   <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">INSTITUIÇÕES</strong>
+                   <div class="chip-group">
+                      <span class="chip-filter" data-group="bi_inst" data-value="UFRN" onclick="toggleChip(this)">UFRN</span>
+                      <span class="chip-filter" data-group="bi_inst" data-value="ITEP" onclick="toggleChip(this)">ITEP</span>
+                      <span class="chip-filter" data-group="bi_inst" data-value="IFRN" onclick="toggleChip(this)">IFRN</span>
+                      <span class="chip-filter" data-group="bi_inst" data-value="UNP" onclick="toggleChip(this)">UNP</span>
+                      <span class="chip-filter" data-group="bi_inst" data-value="UERN" onclick="toggleChip(this)">UERN</span>
                    </div>
-                   
-                   <div style="background: #222; padding: 10px; border-radius: 6px;">
-                      <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">TURNOS</strong>
-                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_turno" value="Matutino" onchange="renderizarDashboardBI()"> Matutino</label>
-                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_turno" value="Vespertino" onchange="renderizarDashboardBI()"> Vespertino</label>
-                      <label style="font-size: 12px; display:block; margin-bottom:4px; cursor:pointer;"><input type="checkbox" name="bi_turno" value="Noturno" onchange="renderizarDashboardBI()"> Noturno</label>
-                      <label style="font-size: 12px; display:block; cursor:pointer;"><input type="checkbox" name="bi_turno" value="Integral" onchange="renderizarDashboardBI()"> Integral</label>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                   <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">TURNOS</strong>
+                   <div class="chip-group">
+                      <span class="chip-filter" data-group="bi_turno" data-value="Matutino" onclick="toggleChip(this)">Matutino</span>
+                      <span class="chip-filter" data-group="bi_turno" data-value="Vespertino" onclick="toggleChip(this)">Vespertino</span>
+                      <span class="chip-filter" data-group="bi_turno" data-value="Noturno" onclick="toggleChip(this)">Noturno</span>
+                      <span class="chip-filter" data-group="bi_turno" data-value="Integral" onclick="toggleChip(this)">Integral</span>
                    </div>
                 </div>
                 
-                <div style="background: #222; padding: 10px; border-radius: 6px; margin-bottom: 20px;">
+                <div style="margin-bottom: 20px;">
                    <strong style="font-size: 11px; color:#ccc; display:block; margin-bottom:8px;">DIAS DA SEMANA</strong>
-                   <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Seg" onchange="renderizarDashboardBI()"> Seg</label>
-                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Ter" onchange="renderizarDashboardBI()"> Ter</label>
-                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Qua" onchange="renderizarDashboardBI()"> Qua</label>
-                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Qui" onchange="renderizarDashboardBI()"> Qui</label>
-                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Sex" onchange="renderizarDashboardBI()"> Sex</label>
-                      <label style="font-size: 12px; cursor:pointer;"><input type="checkbox" name="bi_dia" value="Sáb" onchange="renderizarDashboardBI()"> Sáb</label>
+                   <div class="chip-group">
+                      <span class="chip-filter" data-group="bi_dia" data-value="Seg" onclick="toggleChip(this)">Seg</span>
+                      <span class="chip-filter" data-group="bi_dia" data-value="Ter" onclick="toggleChip(this)">Ter</span>
+                      <span class="chip-filter" data-group="bi_dia" data-value="Qua" onclick="toggleChip(this)">Qua</span>
+                      <span class="chip-filter" data-group="bi_dia" data-value="Qui" onclick="toggleChip(this)">Qui</span>
+                      <span class="chip-filter" data-group="bi_dia" data-value="Sex" onclick="toggleChip(this)">Sex</span>
+                      <span class="chip-filter" data-group="bi_dia" data-value="Sáb" onclick="toggleChip(this)">Sáb</span>
                    </div>
                 </div>
                 
@@ -422,7 +424,7 @@
 
   <div id="toast"></div>
 
-  <script src="js_global.js?v=11.2"></script>
-  <script src="app.js?v=11.2"></script>
+  <script src="js_global.js?v=11.3"></script>
+  <script src="app.js?v=11.3"></script>
 </body>
 </html>
