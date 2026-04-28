@@ -1,9 +1,9 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.2.4 (AUDITORIA DE DUPLA VOZ E LOGÍSTICA)
+// 0. CONFIGURAÇÕES DA API V9.2.3 (MODERAÇÃO E LOGÍSTICA)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzfYORq1Pdx-kRmUpjKN5BGX1D7WdxubG_Um3h1Uh1i3wIEYsWDVLIwWFx7ATMwHIFE/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbx_ykonSbxTvYjP67AYjtO8qkLHNXf-Ss2D7igCPGaobErC-teeWOrD8NnCXC1SDBuP/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -1178,7 +1178,7 @@ function pararTransmissaoGpsE_Radar(matarRadarTambem = true) {
 }
 
 // ========================================================================
-// 6. MODO FISCAL E ADMINISTRAÇÃO AVANÇADA (V9.2.4 - SCANNER TRANSPARENTE)
+// 6. MODO FISCAL E ADMINISTRAÇÃO AVANÇADA (V9.2.2)
 // ========================================================================
 let html5QrcodeScanner = null;
 
@@ -1281,9 +1281,8 @@ async function validarFiscal() {
     alunoBase = cacheList.find(a => a.id === idCarteira);
   }
 
-  // Pre-load visual enquanto consulta a base de dados
   if (alunoBase) {
-     resBox.innerHTML = gerarHtmlFiscal(alunoBase.nome, "A carregar...", "...", "...", `<div class="wallet-photo skeleton-box"></div>`, alunoBase.status, "");
+     resBox.innerHTML = gerarHtmlFiscal(alunoBase.nome, "A carregar...", "...", "...", `<div class="wallet-photo skeleton-box"></div>`, alunoBase.status);
   } else {
      resBox.innerHTML = `<div class="text-center text-light" style="margin-top: 20px;">A pesquisar na base de dados online... ⏳</div>`;
   }
@@ -1297,13 +1296,11 @@ async function validarFiscal() {
        return; 
     }
     
-    // Renderiza a base de texto (com a observação extraída)
-    resBox.innerHTML = gerarHtmlFiscal(res.nome, res.instituicao, res.rota, res.turno, `<div class="wallet-photo skeleton-box"></div>`, res.statusAtividade, res.obsCompleta);
+    resBox.innerHTML = gerarHtmlFiscal(res.nome, res.instituicao, res.rota, res.turno, `<div class="wallet-photo skeleton-box"></div>`, res.statusAtividade);
     
-    // Pede a foto de forma assíncrona para não prender a leitura
     apiCall("getFotoEstudanteBase64", { idEstudante: idCarteira }).then(resFoto => {
        const imgHtml = resFoto.fotoBase64 ? `<img src="${resFoto.fotoBase64}" class="wallet-photo">` : `<div class="wallet-photo" style="display:flex;align-items:center;justify-content:center;color:#666; background:#222; border-color:#333;">Sem Foto</div>`;
-       resBox.innerHTML = gerarHtmlFiscal(res.nome, res.instituicao, res.rota, res.turno, imgHtml, res.statusAtividade, res.obsCompleta);
+       resBox.innerHTML = gerarHtmlFiscal(res.nome, res.instituicao, res.rota, res.turno, imgHtml, res.statusAtividade);
        if (res.statusAtividade === "ATIVO") iniciarRelogioAntiPrint('fiscal-clock');
     }).catch(err => console.log("Erro foto da API."));
 
@@ -1313,40 +1310,20 @@ async function validarFiscal() {
   }
 }
 
-// V9.2.4: O Extrator de Contexto Inteligente (Dupla Voz)
-function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal, obsCompleta) {
+function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal) {
     let statusBadge = "";
     let relogioAntiPrint = "";
-    let caixaMotivo = "";
     const nomeTratado = formatarNome(nome);
     
     if (statusReal === "ATIVO") {
       statusBadge = `<div style="background:var(--success); color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px; margin-bottom:10px;">✅ LIBERADO</div>`;
       relogioAntiPrint = `<div class="anti-print-bar" id="fiscal-clock" style="margin-top:0;"></div>`;
-    } 
-    else {
-      // Regra de Extração para Fiscais (Pesca apenas o que está dentro do <textofiscal>)
-      let motivoFiscal = "Sem justificação técnica no sistema. Oriente o aluno a consultar o portal.";
-      if (obsCompleta) {
-          const matchFiscal = obsCompleta.match(/<textofiscal>([\s\S]*?)<\/textofiscal>/i);
-          if (matchFiscal && matchFiscal[1]) {
-              motivoFiscal = matchFiscal[1].trim();
-          }
-      }
-
-      caixaMotivo = `
-         <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px; margin-top: 15px; border-radius: 4px; text-align: left;">
-            <strong style="color: #92400e; font-size: 11px; display: block; margin-bottom: 3px;">⚠️ NOTA PARA O OPERADOR:</strong>
-            <p style="color: #b45309; font-size: 12px; margin: 0; line-height: 1.4;">${motivoFiscal}</p>
-         </div>`;
-
-      if (statusReal === "CANCELADO") {
-         statusBadge = `<div style="background:var(--danger); color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">❌ CANCELADO</div>`;
-      } else if (statusReal === "SUSPENSO") {
-         statusBadge = `<div style="background:#F97316; color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⚠️ SUSPENSO</div>`;
-      } else {
-         statusBadge = `<div style="background:#FBBF24; color:#333; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⏳ PENDENTE</div>`;
-      }
+    } else if (statusReal === "CANCELADO") {
+      statusBadge = `<div style="background:var(--danger); color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">❌ CANCELADO</div>`;
+    } else if (statusReal === "SUSPENSO") {
+      statusBadge = `<div style="background:#F97316; color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⚠️ SUSPENSO</div>`;
+    } else {
+      statusBadge = `<div style="background:#FBBF24; color:#333; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⏳ PENDENTE</div>`;
     }
 
     return `
@@ -1360,8 +1337,7 @@ function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal, ob
           <div class="w-group"><span>Rota / Turno</span><span style="color:var(--accent); font-weight:700;">${rota} • ${turno}</span></div>
         </div>
       </div>
-      ${caixaMotivo}
-      <div class="wallet-footer" style="margin-top: 15px;">${statusBadge}${relogioAntiPrint}</div>
+      <div class="wallet-footer">${statusBadge}${relogioAntiPrint}</div>
     </div>`;
 }
 
