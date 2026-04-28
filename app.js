@@ -1,5 +1,5 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.2.4 (AUDITORIA DE DUPLA VOZ E LOGÍSTICA)
+// 0. CONFIGURAÇÕES DA API V9.2.4 (AUDITORIA DE DUPLA VOZ)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
@@ -1178,7 +1178,7 @@ function pararTransmissaoGpsE_Radar(matarRadarTambem = true) {
 }
 
 // ========================================================================
-// 6. MODO FISCAL E ADMINISTRAÇÃO AVANÇADA (V9.2.4 - SCANNER TRANSPARENTE)
+// 6. MODO FISCAL E ADMINISTRAÇÃO AVANÇADA (V9.2.4)
 // ========================================================================
 let html5QrcodeScanner = null;
 
@@ -1281,7 +1281,6 @@ async function validarFiscal() {
     alunoBase = cacheList.find(a => a.id === idCarteira);
   }
 
-  // Pre-load visual enquanto consulta a base de dados
   if (alunoBase) {
      resBox.innerHTML = gerarHtmlFiscal(alunoBase.nome, "A carregar...", "...", "...", `<div class="wallet-photo skeleton-box"></div>`, alunoBase.status, "");
   } else {
@@ -1289,6 +1288,7 @@ async function validarFiscal() {
   }
 
   try {
+    // V9.2.4: A chamada agora traz também o campo "obsCompleta"
     const res = await apiCall("consultarEstudantePorId", { idEstudante: idCarteira });
     btn.innerText = "VERIFICAR ESTUDANTE";
     
@@ -1297,10 +1297,8 @@ async function validarFiscal() {
        return; 
     }
     
-    // Renderiza a base de texto (com a observação extraída)
     resBox.innerHTML = gerarHtmlFiscal(res.nome, res.instituicao, res.rota, res.turno, `<div class="wallet-photo skeleton-box"></div>`, res.statusAtividade, res.obsCompleta);
     
-    // Pede a foto de forma assíncrona para não prender a leitura
     apiCall("getFotoEstudanteBase64", { idEstudante: idCarteira }).then(resFoto => {
        const imgHtml = resFoto.fotoBase64 ? `<img src="${resFoto.fotoBase64}" class="wallet-photo">` : `<div class="wallet-photo" style="display:flex;align-items:center;justify-content:center;color:#666; background:#222; border-color:#333;">Sem Foto</div>`;
        resBox.innerHTML = gerarHtmlFiscal(res.nome, res.instituicao, res.rota, res.turno, imgHtml, res.statusAtividade, res.obsCompleta);
@@ -1313,40 +1311,49 @@ async function validarFiscal() {
   }
 }
 
-// V9.2.4: O Extrator de Contexto Inteligente (Dupla Voz)
+// V9.2.4: Função Auxiliar para Extrair Mensagens Técnicas
+function extrairTextoDaTag(textoBruto, tag) {
+    if (!textoBruto) return "";
+    const regex = new RegExp("<" + tag + ">([\\s\\S]*?)<\\/" + tag + ">", "i");
+    const match = textoBruto.match(regex);
+    return match ? match[1].trim() : "";
+}
+
 function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal, obsCompleta) {
     let statusBadge = "";
     let relogioAntiPrint = "";
     let caixaMotivo = "";
     const nomeTratado = formatarNome(nome);
     
+    // Processamento da Caixa de Motivo (Aparece se for SUSPENSO ou PENDENTE e tiver <textofiscal>)
+    if (statusReal !== "ATIVO" && obsCompleta) {
+        let motivoFiscal = extrairTextoDaTag(obsCompleta, "textofiscal");
+        
+        // Fallback: Se não achar a tag, tenta mostrar a última linha para dar algum contexto ao operador
+        if (!motivoFiscal) {
+            let linhas = obsCompleta.trim().split('\n');
+            motivoFiscal = linhas.length > 0 ? linhas[linhas.length - 1] : "Motivo não especificado. Consulte o sistema central.";
+        }
+        
+        let corFundo = statusReal === "SUSPENSO" || statusReal === "CANCELADO" ? "#451a1a" : "#452a0a";
+        let corBorda = statusReal === "SUSPENSO" || statusReal === "CANCELADO" ? "#ef4444" : "#f59e0b";
+        
+        caixaMotivo = `
+        <div style="background: ${corFundo}; border-left: 4px solid ${corBorda}; padding: 12px; margin-top: 15px; border-radius: 4px;">
+            <strong style="color: ${corBorda}; font-size: 11px; display: block; margin-bottom: 5px; text-transform: uppercase;">ℹ️ Nota para o Fiscal:</strong>
+            <p style="color: #eee; font-size: 12px; line-height: 1.4; margin: 0;">${motivoFiscal.replace(/\n/g, '<br>')}</p>
+        </div>`;
+    }
+    
     if (statusReal === "ATIVO") {
       statusBadge = `<div style="background:var(--success); color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px; margin-bottom:10px;">✅ LIBERADO</div>`;
       relogioAntiPrint = `<div class="anti-print-bar" id="fiscal-clock" style="margin-top:0;"></div>`;
-    } 
-    else {
-      // Regra de Extração para Fiscais (Pesca apenas o que está dentro do <textofiscal>)
-      let motivoFiscal = "Sem justificação técnica no sistema. Oriente o aluno a consultar o portal.";
-      if (obsCompleta) {
-          const matchFiscal = obsCompleta.match(/<textofiscal>([\s\S]*?)<\/textofiscal>/i);
-          if (matchFiscal && matchFiscal[1]) {
-              motivoFiscal = matchFiscal[1].trim();
-          }
-      }
-
-      caixaMotivo = `
-         <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px; margin-top: 15px; border-radius: 4px; text-align: left;">
-            <strong style="color: #92400e; font-size: 11px; display: block; margin-bottom: 3px;">⚠️ NOTA PARA O OPERADOR:</strong>
-            <p style="color: #b45309; font-size: 12px; margin: 0; line-height: 1.4;">${motivoFiscal}</p>
-         </div>`;
-
-      if (statusReal === "CANCELADO") {
-         statusBadge = `<div style="background:var(--danger); color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">❌ CANCELADO</div>`;
-      } else if (statusReal === "SUSPENSO") {
-         statusBadge = `<div style="background:#F97316; color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⚠️ SUSPENSO</div>`;
-      } else {
-         statusBadge = `<div style="background:#FBBF24; color:#333; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⏳ PENDENTE</div>`;
-      }
+    } else if (statusReal === "CANCELADO") {
+      statusBadge = `<div style="background:var(--danger); color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">❌ CANCELADO</div>`;
+    } else if (statusReal === "SUSPENSO") {
+      statusBadge = `<div style="background:#F97316; color:white; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⚠️ SUSPENSO</div>`;
+    } else {
+      statusBadge = `<div style="background:#FBBF24; color:#333; padding:10px; border-radius:6px; text-align:center; font-weight:700; letter-spacing:1px;">⏳ PENDENTE</div>`;
     }
 
     return `
@@ -1495,7 +1502,6 @@ async function enviarMensagemParaMural() {
     
     if (mensagem.length < 10) { showToast("A mensagem é muito curta.", "error"); return; }
     
-    // V9.2.3: Feedback visual de que a IA está a ler o texto
     btn.innerHTML = 'A VALIDAR QUOTA... ⏳';
     btn.disabled = true;
 
@@ -1511,7 +1517,6 @@ async function enviarMensagemParaMural() {
             fecharModalMural();
             abrirMuralDaSemana(); 
         } else {
-            // Se falhou (limite ou bloqueio por palavrões) avisa o aluno
             showToast(res.erro || "Falha ao submeter.", "error");
             btn.innerHTML = 'TENTAR NOVAMENTE';
             btn.disabled = false;
