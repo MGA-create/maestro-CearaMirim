@@ -1,9 +1,9 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.2.4 (AUDITORIA DE DUPLA VOZ)
+// 0. CONFIGURAÇÕES DA API V9.2.5 (NOTIFICAÇÕES & PUSH)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzzZ64vRY8AOqOK-vaGc-1nOcbxtVW0210BMqa9dyYoU-q7w6phxHkQMNx4XRAqmTpH/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyQ1GPP4cfv8TvKTwJRdp49St_O7SC1ZhdC-9UMldeihiX7ZfBmh64vIAJkIr9pU1eZ/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -334,6 +334,7 @@ async function consultarEstudante() {
 
   const btn = document.getElementById('btn-estudante');
   const resBox = document.getElementById('res-estudante');
+  const checkboxPush = document.getElementById('chk-notificacoes-cpf');
   
   btn.innerText = "A CONSULTAR...";
   btn.disabled = true;
@@ -348,11 +349,35 @@ async function consultarEstudante() {
       mostrarErroEstudante("Não Encontrado", "Verifique o CPF ou submissão.");
       return;
     }
+    
+    // V9.2.5: Se assinalou a checkbox, tenta registar o Push usando o CPF como identificador
+    if (checkboxPush && checkboxPush.checked) {
+       solicitarConsentimentoPushAnonimo(alvo);
+    }
+    
     renderizarTimelineEstudante(res, resBox);
   } catch(err) {
     btn.innerText = "CONSULTAR STATUS";
     btn.disabled = false;
     mostrarErroEstudante("Erro na API", "Tente novamente mais tarde.");
+  }
+}
+
+// V9.2.5: Registo de Push via Checkbox do Estudante
+async function solicitarConsentimentoPushAnonimo(cpf) {
+  try {
+    if (typeof firebase === 'undefined' || !firebase.messaging.isSupported()) return;
+    const messaging = firebase.messaging();
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      const token = await messaging.getToken({ vapidKey: window.FIREBASE_VAPID_KEY });
+      if (token) {
+        // Envia o CPF em vez do ID_CARTEIRA para a API
+        await apiCall("registrarPushToken", { idEstudante: cpf, pushToken: token });
+      }
+    }
+  } catch (error) {
+    console.log("Push anónimo falhou ou foi bloqueado.", error);
   }
 }
 
@@ -1290,7 +1315,6 @@ async function validarFiscal() {
   }
 
   try {
-    // V9.2.4: A chamada agora traz também o campo "obsCompleta"
     const res = await apiCall("consultarEstudantePorId", { idEstudante: idCarteira });
     btn.innerText = "VERIFICAR ESTUDANTE";
     
@@ -1313,7 +1337,6 @@ async function validarFiscal() {
   }
 }
 
-// V9.2.4: Função Auxiliar para Extrair Mensagens Técnicas
 function extrairTextoDaTag(textoBruto, tag) {
     if (!textoBruto) return "";
     const regex = new RegExp("<" + tag + ">([\\s\\S]*?)<\\/" + tag + ">", "i");
@@ -1327,11 +1350,9 @@ function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal, ob
     let caixaMotivo = "";
     const nomeTratado = formatarNome(nome);
     
-    // Processamento da Caixa de Motivo (Aparece se for SUSPENSO ou PENDENTE e tiver <textofiscal>)
     if (statusReal !== "ATIVO" && obsCompleta) {
         let motivoFiscal = extrairTextoDaTag(obsCompleta, "textofiscal");
         
-        // Fallback: Se não achar a tag, tenta mostrar a última linha para dar algum contexto ao operador
         if (!motivoFiscal) {
             let linhas = obsCompleta.trim().split('\n');
             motivoFiscal = linhas.length > 0 ? linhas[linhas.length - 1] : "Motivo não especificado. Consulte o sistema central.";
@@ -1419,7 +1440,7 @@ async function dispararEncerramentoRota() {
 }
 
 // ========================================================================
-// 6.1. MOTOR DE CRISES E MURAL (COMUNIDADE)
+// 6.1. MOTOR DE CRISES E AVISOS PUSH (V9.2.5)
 // ========================================================================
 function abrirModalSOS() {
     document.getElementById('modal-sos-fiscal').classList.remove('hidden');
@@ -1444,7 +1465,7 @@ function confirmarEmergenciaGPS() {
         return;
     }
     
-    btn.innerHTML = 'A OBTER GPS... ⏳';
+    btn.innerHTML = 'A OBTER GPS E NOTIFICAR ALUNOS... ⏳';
     btn.disabled = true;
     
     if (!navigator.geolocation) {
@@ -1466,12 +1487,11 @@ function confirmarEmergenciaGPS() {
 
 async function enviarAlarmeCriseAPI(idBus, motivo, coords) {
     const btn = document.getElementById('btn-enviar-sos');
-    btn.innerHTML = 'A COMUNICAR SECRETARIA...';
     
     try {
         const res = await apiCall("declararEmergenciaOnibus", { idRotaPlaca: idBus, tipoAvaria: motivo, coordenadasGps: coords });
         if (res.sucesso) {
-            showToast("Emergência reportada! Alunos avisados.", "success");
+            showToast("Emergência reportada! Alunos da rota avisados via Push.", "success");
             fecharModalSOS();
         } else {
             showToast(res.erro || "Falha ao gravar emergência.", "error");
@@ -1525,6 +1545,146 @@ async function enviarMensagemParaMural() {
         }
     } catch(e) {
         showToast("Erro de comunicação com o servidor.", "error");
+        btn.innerHTML = 'TENTAR NOVAMENTE';
+        btn.disabled = false;
+    }
+}
+
+// ------------------------------------------------------------------------
+// V9.2.5: NOVO MOTOR DE AVISOS PUSH DO FISCAL
+// ------------------------------------------------------------------------
+function abrirModalAvisosFiscal() {
+    document.getElementById('modal-novo-aviso-fiscal').classList.remove('hidden');
+    
+    // Reseta os campos
+    document.getElementById('aviso-titulo-mural').value = '';
+    document.getElementById('aviso-msg-mural').value = '';
+    document.getElementById('aviso-titulo-direto').value = '';
+    document.getElementById('aviso-msg-direto').value = '';
+    
+    alternarTipoAviso('mural');
+    carregarFiltrosParaPush();
+}
+
+function fecharModalAvisosFiscal() {
+    document.getElementById('modal-novo-aviso-fiscal').classList.add('hidden');
+}
+
+function alternarTipoAviso(tipo) {
+    const tabMural = document.getElementById('tab-aviso-mural');
+    const tabDireto = document.getElementById('tab-aviso-direto');
+    const areaMural = document.getElementById('area-aviso-mural');
+    const areaDireto = document.getElementById('area-aviso-direto');
+    
+    if (tipo === 'mural') {
+        tabMural.classList.add('active');
+        tabDireto.classList.remove('active');
+        areaMural.classList.remove('hidden');
+        areaDireto.classList.add('hidden');
+    } else {
+        tabMural.classList.remove('active');
+        tabDireto.classList.add('active');
+        areaMural.classList.add('hidden');
+        areaDireto.classList.remove('hidden');
+    }
+}
+
+async function carregarFiltrosParaPush() {
+    const selectRota = document.getElementById('filtro-rota-push');
+    const selectTurno = document.getElementById('filtro-turno-push');
+    const selectInst = document.getElementById('filtro-inst-push');
+    
+    try {
+        const res = await apiCall("getFiltrosPush");
+        if (res.sucesso && res.filtros) {
+            let htmlRota = '<option value="TODAS">Qualquer Rota</option>';
+            res.filtros.rotas.forEach(r => htmlRota += `<option value="${r}">${r}</option>`);
+            selectRota.innerHTML = htmlRota;
+            
+            let htmlTurno = '<option value="TODOS">Qualquer Turno</option>';
+            res.filtros.turnos.forEach(t => htmlTurno += `<option value="${t}">${t}</option>`);
+            selectTurno.innerHTML = htmlTurno;
+            
+            let htmlInst = '<option value="TODAS">Qualquer Instituição</option>';
+            res.filtros.instituicoes.forEach(i => htmlInst += `<option value="${i}">${i}</option>`);
+            selectInst.innerHTML = htmlInst;
+        }
+    } catch(e) {
+        console.warn("Filtros falharam ao carregar.");
+    }
+}
+
+async function dispararAvisoPublico() {
+    const tipo = document.getElementById('aviso-tipo-mural').value;
+    const titulo = document.getElementById('aviso-titulo-mural').value.trim();
+    const mensagem = document.getElementById('aviso-msg-mural').value.trim();
+    const btn = document.getElementById('btn-publicar-aviso');
+    
+    if (!titulo || !mensagem) {
+        showToast("Preencha o título e a mensagem.", "error");
+        return;
+    }
+    
+    btn.innerHTML = 'A COMUNICAR COM FIREBASE... ⏳';
+    btn.disabled = true;
+    
+    try {
+        const res = await apiCall("publicarAvisoNotificacao", {
+            tipoAviso: tipo,
+            titulo: titulo,
+            mensagem: mensagem
+        });
+        
+        if (res.sucesso) {
+            showToast("Aviso afixado e alunos notificados!", "success");
+            fecharModalAvisosFiscal();
+        } else {
+            showToast(res.erro || "Falha ao publicar.", "error");
+            btn.innerHTML = 'TENTAR NOVAMENTE';
+            btn.disabled = false;
+        }
+    } catch(e) {
+        showToast("Erro na comunicação.", "error");
+        btn.innerHTML = 'TENTAR NOVAMENTE';
+        btn.disabled = false;
+    }
+}
+
+async function dispararPushSegmentado() {
+    const rota = document.getElementById('filtro-rota-push').value;
+    const turno = document.getElementById('filtro-turno-push').value;
+    const inst = document.getElementById('filtro-inst-push').value;
+    const titulo = document.getElementById('aviso-titulo-direto').value.trim();
+    const mensagem = document.getElementById('aviso-msg-direto').value.trim();
+    const btn = document.getElementById('btn-disparar-direto');
+    
+    if (!titulo || !mensagem) {
+        showToast("Preencha o título e a mensagem.", "error");
+        return;
+    }
+    
+    btn.innerHTML = 'A DISPARAR LOTE... ⏳';
+    btn.disabled = true;
+    
+    try {
+        const res = await apiCall("dispararPushLoteManual", {
+            titulo: titulo,
+            mensagem: mensagem,
+            rota: rota,
+            turno: turno,
+            instituicao: inst
+        });
+        
+        if (res.sucesso) {
+            showToast(`Lote enviado para ${res.enviados} dispositivos.`, "success");
+            fecharModalAvisosFiscal();
+        } else {
+            showToast(res.erro || "Nenhum aluno encontrado neste filtro.", "error");
+            btn.innerHTML = 'TENTAR NOVAMENTE';
+            btn.disabled = false;
+        }
+    } catch(e) {
+        showToast("Erro no disparo em lote.", "error");
         btn.innerHTML = 'TENTAR NOVAMENTE';
         btn.disabled = false;
     }
