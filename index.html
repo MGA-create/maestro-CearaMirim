@@ -17,7 +17,7 @@
   <link id="apple-touch-icon" rel="apple-touch-icon" href="icone.png">
   <link rel="icon" type="image/png" href="icone.png">
   
-  <link rel="stylesheet" href="style.css?v=11.5">
+  <link rel="stylesheet" href="style.css?v=11.6">
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript" defer></script>
@@ -180,6 +180,83 @@
         <div id="res-estudante" class="result-container hidden"></div>
       </section>
 
+      <section id="view-resgate" class="view-section">
+         <div class="form-card" style="border: 2px solid var(--accent);">
+            <div class="form-header" style="margin-bottom: 15px;">
+               <span style="font-size: 36px; display: block; margin-bottom: 5px;">📤</span>
+               <h2 style="color: var(--accent);">RESGATE DOCUMENTAL</h2>
+               <p style="font-size: 11px; line-height: 1.3;">Envie apenas os documentos solicitados pela Secretaria.</p>
+            </div>
+            
+            <div style="background: #FFFBEB; border-left: 4px solid var(--accent); padding: 10px; margin-bottom: 15px; border-radius: 4px;">
+               <p style="margin: 0; font-size: 11px; color: #92400E; font-weight: bold;">⚠️ ATENÇÃO AOS FORMATOS:</p>
+               <ul style="margin: 5px 0 0 0; padding-left: 15px; font-size: 10px; color: #92400E;">
+                  <li><strong>Foto 3x4:</strong> Apenas Imagem (JPEG/PNG).</li>
+                  <li><strong>Outros Documentos:</strong> Apenas PDF.</li>
+               </ul>
+            </div>
+
+            <div id="container-inputs-resgate">
+               <div style="margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                  <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer; color:var(--text-main);">
+                     <input type="checkbox" id="chk-resgate-foto" onchange="toggleBoxResgate('FOTO')" style="width: 18px; height: 18px; accent-color: var(--primary);">
+                     📷 Enviar Foto 3x4 (Nova)
+                  </label>
+                  <div id="box-resgate-FOTO" class="hidden" style="margin-top: 8px; padding-left: 26px;">
+                     <input type="file" id="file-resgate-FOTO" accept="image/jpeg, image/png" class="input-field" style="font-size: 11px; padding: 8px; margin-bottom: 0;" onchange="processarArquivoResgate(this, 'FOTO')">
+                     <span id="status-resgate-FOTO" style="font-size: 10px; color: var(--text-sub);">A aguardar seleção...</span>
+                  </div>
+               </div>
+
+               <div style="margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                  <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer; color:var(--text-main);">
+                     <input type="checkbox" id="chk-resgate-vinculo" onchange="toggleBoxResgate('VINCULO')" style="width: 18px; height: 18px; accent-color: var(--primary);">
+                     🎓 Declaração de Vínculo
+                  </label>
+                  <div id="box-resgate-VINCULO" class="hidden" style="margin-top: 8px; padding-left: 26px;">
+                     <input type="file" id="file-resgate-VINCULO" accept="application/pdf" class="input-field" style="font-size: 11px; padding: 8px; margin-bottom: 0;" onchange="processarArquivoResgate(this, 'VINCULO')">
+                     <span id="status-resgate-VINCULO" style="font-size: 10px; color: var(--text-sub);">A aguardar seleção...</span>
+                  </div>
+               </div>
+
+               <div style="margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                  <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer; color:var(--text-main);">
+                     <input type="checkbox" id="chk-resgate-residencia" onchange="toggleBoxResgate('RESIDENCIA')" style="width: 18px; height: 18px; accent-color: var(--primary);">
+                     🏠 Comprovante de Residência
+                  </label>
+                  <div id="box-resgate-RESIDENCIA" class="hidden" style="margin-top: 8px; padding-left: 26px;">
+                     <input type="file" id="file-resgate-RESIDENCIA" accept="application/pdf" class="input-field" style="font-size: 11px; padding: 8px; margin-bottom: 0;" onchange="processarArquivoResgate(this, 'RESIDENCIA')">
+                     <span id="status-resgate-RESIDENCIA" style="font-size: 10px; color: var(--text-sub);">A aguardar seleção...</span>
+                  </div>
+               </div>
+
+               <div style="margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                  <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer; color:var(--text-main);">
+                     <input type="checkbox" id="chk-resgate-documento" onchange="toggleBoxResgate('DOCUMENTO')" style="width: 18px; height: 18px; accent-color: var(--primary);">
+                     🪪 RG ou CNH (Documento)
+                  </label>
+                  <div id="box-resgate-DOCUMENTO" class="hidden" style="margin-top: 8px; padding-left: 26px;">
+                     <input type="file" id="file-resgate-DOCUMENTO" accept="application/pdf" class="input-field" style="font-size: 11px; padding: 8px; margin-bottom: 0;" onchange="processarArquivoResgate(this, 'DOCUMENTO')">
+                     <span id="status-resgate-DOCUMENTO" style="font-size: 10px; color: var(--text-sub);">A aguardar seleção...</span>
+                  </div>
+               </div>
+
+               <div style="margin-bottom: 15px;">
+                  <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer; color:var(--text-main);">
+                     <input type="checkbox" id="chk-resgate-estagio" onchange="toggleBoxResgate('ESTAGIO')" style="width: 18px; height: 18px; accent-color: var(--primary);">
+                     💼 Comprovante de Estágio
+                  </label>
+                  <div id="box-resgate-ESTAGIO" class="hidden" style="margin-top: 8px; padding-left: 26px;">
+                     <input type="file" id="file-resgate-ESTAGIO" accept="application/pdf" class="input-field" style="font-size: 11px; padding: 8px; margin-bottom: 0;" onchange="processarArquivoResgate(this, 'ESTAGIO')">
+                     <span id="status-resgate-ESTAGIO" style="font-size: 10px; color: var(--text-sub);">A aguardar seleção...</span>
+                  </div>
+               </div>
+            </div>
+
+            <button class="btn-solid accent-bg" id="btn-enviar-resgate" onclick="enviarArquivosResgate()" disabled style="opacity: 0.5;">ENVIAR DOCUMENTOS</button>
+            <button class="btn-text" onclick="cancelarResgate()">Cancelar e Voltar</button>
+         </div>
+      </section>
       <section id="view-login" class="view-section">
         <div class="form-card">
           <div class="form-header">
@@ -409,7 +486,7 @@
 
   <div id="toast"></div>
 
-  <script src="js_global.js?v=11.5"></script>
-  <script src="app.js?v=11.5"></script>
+  <script src="js_global.js?v=11.6"></script>
+  <script src="app.js?v=11.6"></script>
 </body>
 </html>
