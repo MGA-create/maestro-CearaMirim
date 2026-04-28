@@ -35,12 +35,62 @@
     </div>
   </div>
 
+  <div id="modal-novo-aviso-fiscal" class="splash-overlay hidden" style="z-index: 9999; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);">
+    <div class="form-card" style="width: 90%; max-width: 400px; border: 2px solid var(--primary); max-height: 90vh; overflow-y: auto;">
+      <div class="form-header" style="margin-bottom: 15px;">
+         <span style="font-size: 36px; display: block; margin-bottom: 5px;">📢</span>
+         <h2 style="color: var(--primary); font-size: 18px;">CENTRAL DE AVISOS</h2>
+         <p style="font-size: 11px; line-height: 1.3;">Dispare notificações PUSH diretamente para o telemóvel dos estudantes.</p>
+      </div>
+      
+      <div class="dash-tabs" style="margin-bottom: 15px;">
+         <button class="dash-tab active" id="tab-aviso-mural" onclick="alternarTipoAviso('mural')">Mural Público</button>
+         <button class="dash-tab" id="tab-aviso-direto" onclick="alternarTipoAviso('direto')">Alerta Direcionado</button>
+      </div>
+
+      <div id="area-aviso-mural">
+         <p style="font-size: 11px; color: var(--text-sub); margin-bottom: 15px; text-align: justify;">Esta opção cria um cartão visível no topo da app de todos os estudantes e envia um aviso Push geral.</p>
+         <label class="input-label" style="text-align: left;">TIPO DE AVISO</label>
+         <select id="aviso-tipo-mural" class="input-field">
+            <option value="Geral">Informativo Geral</option>
+            <option value="Transporte">Logística e Transporte</option>
+            <option value="Urgente">Urgente / Crítico</option>
+         </select>
+         <label class="input-label" style="text-align: left;">TÍTULO</label>
+         <input type="text" id="aviso-titulo-mural" class="input-field" placeholder="Ex: Mudança de Rota...">
+         <label class="input-label" style="text-align: left;">CORPO DA MENSAGEM</label>
+         <textarea id="aviso-msg-mural" class="input-field" rows="3" placeholder="Detalhes do aviso..."></textarea>
+         <button class="btn-solid" id="btn-publicar-aviso" style="background: var(--primary); margin-top: 10px;" onclick="dispararAvisoPublico()">PUBLICAR E NOTIFICAR</button>
+      </div>
+
+      <div id="area-aviso-direto" class="hidden">
+         <p style="font-size: 11px; color: var(--text-sub); margin-bottom: 15px; text-align: justify;">Esta opção não fica salva no mural. Ela apita apenas nos telemóveis dos alunos que cumprem os filtros abaixo.</p>
+         
+         <label class="input-label" style="text-align: left;">ALVOS (Filtros Cruzados)</label>
+         <div style="background: var(--secondary); padding: 10px; border-radius: 6px; margin-bottom: 15px;">
+            <select id="filtro-rota-push" class="input-field" style="margin-bottom: 8px; font-size: 11px; padding: 6px;"><option value="TODAS">Qualquer Rota</option></select>
+            <select id="filtro-turno-push" class="input-field" style="margin-bottom: 8px; font-size: 11px; padding: 6px;"><option value="TODOS">Qualquer Turno</option></select>
+            <select id="filtro-inst-push" class="input-field" style="margin-bottom: 0; font-size: 11px; padding: 6px;"><option value="TODAS">Qualquer Instituição</option></select>
+         </div>
+
+         <label class="input-label" style="text-align: left;">TÍTULO DO ALERTA PUSH</label>
+         <input type="text" id="aviso-titulo-direto" class="input-field" placeholder="Ex: Autocarro 3 Atrasado">
+         <label class="input-label" style="text-align: left;">MENSAGEM (Curta)</label>
+         <textarea id="aviso-msg-direto" class="input-field" rows="2" maxlength="100" placeholder="Máximo 100 caracteres..."></textarea>
+         
+         <button class="btn-solid" id="btn-disparar-direto" style="background: #eab308; margin-top: 10px; color: #333;" onclick="dispararPushSegmentado()">DISPARAR ALERTA SILENCIOSO</button>
+      </div>
+      
+      <button class="btn-text text-light" style="margin-top: 10px;" onclick="fecharModalAvisosFiscal()">Cancelar</button>
+    </div>
+  </div>
+
   <div id="modal-sos-fiscal" class="splash-overlay hidden" style="z-index: 9999; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);">
     <div class="form-card" style="width: 90%; max-width: 400px; border: 2px solid var(--danger);">
       <div class="form-header" style="margin-bottom: 15px;">
          <span style="font-size: 36px; display: block; margin-bottom: 5px;">🚨</span>
          <h2 style="color: var(--danger); font-size: 18px;">DECLARAR EMERGÊNCIA</h2>
-         <p style="font-size: 11px; line-height: 1.3;">Isto irá inativar o autocarro, libertar os estudantes para outras rotas e enviar o seu GPS à coordenação.</p>
+         <p style="font-size: 11px; line-height: 1.3;">Isto irá inativar o autocarro, notificar os estudantes desta rota e enviar o seu GPS à coordenação.</p>
       </div>
       
       <label class="input-label" style="text-align: left;">PLACA OU ROTA DO AUTOCARRO</label>
@@ -190,6 +240,14 @@
             <p>Acompanhe a emissão da sua identidade</p>
           </div>
           <input type="text" id="id-estudante" class="input-field" placeholder="Digite apenas os números do CPF">
+          
+          <div style="text-align: left; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 6px; margin-bottom: 15px;">
+             <label style="display:flex; align-items:flex-start; gap:8px; font-size:11px; color:#166534; cursor:pointer;">
+                <input type="checkbox" id="chk-notificacoes-cpf" style="margin-top: 2px;">
+                <span><strong>Avisem-me por aqui!</strong> Desejo receber atualizações e alertas sobre o meu autocarro diretamente neste telemóvel.</span>
+             </label>
+          </div>
+
           <button class="btn-solid" id="btn-estudante" onclick="consultarEstudante()">CONSULTAR STATUS</button>
           <button class="btn-text" onclick="switchView('view-aluno-menu')">Cancelar</button>
         </div>
@@ -345,7 +403,17 @@
           <span class="icon">📊</span>
           <div class="info">
             <strong>Painel Analítico</strong>
-            <span>Estatísticas</span>
+            <span>Estatísticas e BI</span>
+          </div>
+        </button>
+
+        <div class="divider-text" style="color: #666;">COMUNICAÇÃO E LOGÍSTICA</div>
+
+        <button class="menu-card outline-card" style="border-color: #3b82f6; background: rgba(59, 130, 246, 0.05);" onclick="abrirModalAvisosFiscal()">
+          <span class="icon" style="background: none; filter: none;">📢</span>
+          <div class="info">
+            <strong style="color: #3b82f6;">Disparar Avisos (Push)</strong>
+            <span>Mural ou mensagens filtradas</span>
           </div>
         </button>
         
