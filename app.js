@@ -55,6 +55,15 @@ async function apiCall(action, payload = {}) {
 
 let deferredPrompt; 
 
+// CORREÇÃO: Ouve o evento de instalação imediatamente ao carregar a página
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Mostra o botão/banner assim que o navegador permite
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) banner.classList.remove('hidden');
+});
+
 async function bootSystem() {
   try {
     const res = await apiCall("getConfiguracoesPWA");
@@ -121,13 +130,6 @@ function initPWA() {
       .then(reg => console.log('Service Worker Registado.'))
       .catch(err => console.log('Erro no SW:', err));
   }
-
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    const banner = document.getElementById('pwa-install-banner');
-    if (banner) banner.classList.remove('hidden');
-  });
 }
 
 function instalarPWA() {
