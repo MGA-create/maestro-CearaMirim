@@ -1,9 +1,9 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.2.2 (LOGÍSTICA & RESGATE)
+// 0. CONFIGURAÇÕES DA API V9.2.3 (MODERAÇÃO E LOGÍSTICA)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyBlTvAmqLGARwxgVkedRLj8vuBt9E1izt9rElKSsnmKJUALK8a2EuJd9Uo_PN44_32/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbx_ykonSbxTvYjP67AYjtO8qkLHNXf-Ss2D7igCPGaobErC-teeWOrD8NnCXC1SDBuP/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -1471,16 +1471,23 @@ async function enviarMensagemParaMural() {
     
     if (mensagem.length < 10) { showToast("A mensagem é muito curta.", "error"); return; }
     
+    // V9.2.3: Feedback visual de que a IA está a ler o texto
     btn.innerHTML = 'A VALIDAR QUOTA... ⏳';
     btn.disabled = true;
 
     try {
+        setTimeout(() => { 
+            if (btn.disabled) btn.innerHTML = 'A AUDITAR CONTEÚDO... 🤖'; 
+        }, 1500);
+
         const res = await apiCall("publicarMensagemMural", { idEstudante: currentWalletId, nomeEstudante: currentStudentName, categoria: categoria, mensagem: mensagem });
+        
         if (res.sucesso) {
-            showToast(res.msg || "Mensagem partilhada com sucesso!", "success");
+            showToast(res.msg || "Mensagem aprovada e partilhada!", "success");
             fecharModalMural();
             abrirMuralDaSemana(); 
         } else {
+            // Se falhou (limite ou bloqueio por palavrões) avisa o aluno
             showToast(res.erro || "Falha ao submeter.", "error");
             btn.innerHTML = 'TENTAR NOVAMENTE';
             btn.disabled = false;
