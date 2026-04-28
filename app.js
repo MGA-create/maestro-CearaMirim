@@ -1,9 +1,9 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.0.6 (HEADLESS REST)
+// 0. CONFIGURAÇÕES DA API V9.2 (HEADLESS REST - RESGATE DOCUMENTAL)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxvMTfCWRx9_rshuIBZ_GNDWxKb8nxwY3r3y_2-gQxzzcTHkz5mfCsX1Tq45TM_C6lx/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxrsAN03qLJWMrYr0fBYyaYeqHlqvcrFQ92ZRLTJGsUdyoBnx_8Ij9uP703UyBgAms/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -406,6 +406,8 @@ function renderizarTimelineEstudante(dados, container) {
                <strong style="color:#F97316;">3. Inscrição Suspensa</strong><br>
                <span style="color:#F97316; font-size:11px; font-weight:600;">O acesso foi desativado temporariamente.</span>
                ${buildObsBox(dados.obs, "#F97316", "#FFF7ED", "#9A3412")}
+               
+               <button class="btn-solid" style="margin-top:15px; background: #9A3412; font-size:12px;" onclick="abrirPortalResgate()">CORRIGIR DOCUMENTAÇÃO</button>
              </div>`;
              
   } else {
@@ -418,6 +420,8 @@ function renderizarTimelineEstudante(dados, container) {
                  <strong style="color:#FBBF24;">2. Pendência Documental</strong><br>
                  <span style="color:#D97706; font-size:11px; font-weight:600;">Ação necessária para prosseguir.</span>
                  ${buildObsBox(dados.obs, "#F59E0B", "#FFFBEB", "#92400E")}
+                 
+                 <button class="btn-solid" style="margin-top:15px; background: var(--accent); font-size:12px;" onclick="abrirPortalResgate()">CORRIGIR DOCUMENTAÇÃO</button>
                </div>`;
       html += `<div class="timeline-item"><strong>3. Resultado</strong></div>`;
       
@@ -451,6 +455,147 @@ function mostrarErroEstudante(titulo, mensagem) {
   const resBox = document.getElementById('res-estudante');
   resBox.innerHTML = `<div class="error-box"><strong>${titulo}</strong><br>${mensagem}</div>`;
   resBox.classList.remove('hidden');
+}
+
+// ========================================================================
+// 4.1. MÓDULO DE RESGATE DOCUMENTAL (V9.2)
+// ========================================================================
+
+let arquivosParaResgate = {};
+
+function abrirPortalResgate() {
+    switchView('view-resgate');
+    // Limpa estado anterior
+    arquivosParaResgate = {};
+    document.querySelectorAll("input[type='checkbox'][id^='chk-resgate-']").forEach(chk => chk.checked = false);
+    document.querySelectorAll("div[id^='box-resgate-']").forEach(box => box.classList.add('hidden'));
+    document.querySelectorAll("input[type='file'][id^='file-resgate-']").forEach(f => f.value = "");
+    document.querySelectorAll("span[id^='status-resgate-']").forEach(st => {
+        st.innerText = "A aguardar seleção...";
+        st.style.color = "var(--text-sub)";
+    });
+    verificarBotaoResgate();
+}
+
+function cancelarResgate() {
+    switchView('view-consult');
+}
+
+function toggleBoxResgate(tipoDoc) {
+    const isChecked = document.getElementById(`chk-resgate-${tipoDoc.toLowerCase()}`).checked;
+    const box = document.getElementById(`box-resgate-${tipoDoc}`);
+    const fileInput = document.getElementById(`file-resgate-${tipoDoc}`);
+    const statusSpan = document.getElementById(`status-resgate-${tipoDoc}`);
+    
+    if (isChecked) {
+        box.classList.remove('hidden');
+    } else {
+        box.classList.add('hidden');
+        fileInput.value = "";
+        statusSpan.innerText = "A aguardar seleção...";
+        statusSpan.style.color = "var(--text-sub)";
+        delete arquivosParaResgate[tipoDoc];
+        verificarBotaoResgate();
+    }
+}
+
+function processarArquivoResgate(inputElement, tipoDoc) {
+    const file = inputElement.files[0];
+    const statusSpan = document.getElementById(`status-resgate-${tipoDoc}`);
+    
+    if (!file) {
+        delete arquivosParaResgate[tipoDoc];
+        statusSpan.innerText = "A aguardar seleção...";
+        statusSpan.style.color = "var(--text-sub)";
+        verificarBotaoResgate();
+        return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB Limit
+        showToast("O arquivo é muito grande (Máximo 5MB).", "error");
+        inputElement.value = "";
+        delete arquivosParaResgate[tipoDoc];
+        statusSpan.innerText = "Erro: Arquivo demasiado pesado.";
+        statusSpan.style.color = "var(--danger)";
+        verificarBotaoResgate();
+        return;
+    }
+
+    statusSpan.innerText = "A processar... ⏳";
+    statusSpan.style.color = "var(--accent)";
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        arquivosParaResgate[tipoDoc] = {
+            tipo: tipoDoc,
+            nome: file.name,
+            base64: e.target.result
+        };
+        statusSpan.innerText = "✅ Anexado e pronto a enviar!";
+        statusSpan.style.color = "var(--success)";
+        verificarBotaoResgate();
+    };
+    reader.onerror = function() {
+        showToast("Falha na leitura do arquivo.", "error");
+        inputElement.value = "";
+        delete arquivosParaResgate[tipoDoc];
+        statusSpan.innerText = "Erro na leitura.";
+        statusSpan.style.color = "var(--danger)";
+        verificarBotaoResgate();
+    };
+    reader.readAsDataURL(file);
+}
+
+function verificarBotaoResgate() {
+    const btn = document.getElementById('btn-enviar-resgate');
+    // Verifica se há pelo menos um documento válido na gaveta de memória
+    if (Object.keys(arquivosParaResgate).length > 0) {
+        btn.disabled = false;
+        btn.style.opacity = "1";
+    } else {
+        btn.disabled = true;
+        btn.style.opacity = "0.5";
+    }
+}
+
+async function enviarArquivosResgate() {
+    const cpf = document.getElementById('id-estudante').value.trim();
+    if (!cpf) {
+        showToast("Falha interna: CPF não localizado.", "error");
+        return;
+    }
+
+    const payloadArquivos = Object.values(arquivosParaResgate);
+    if (payloadArquivos.length === 0) {
+        showToast("Nenhum arquivo anexado para envio.", "error");
+        return;
+    }
+
+    const btn = document.getElementById('btn-enviar-resgate');
+    btn.innerHTML = "A ENVIAR PARA A SECRETARIA... ⏳";
+    btn.disabled = true;
+
+    try {
+        const res = await apiCall("submeterResgateDocumental", {
+            cpf: cpf,
+            arquivos: payloadArquivos
+        });
+
+        if (res.sucesso) {
+            showToast(res.msg || "Documentos enviados com sucesso!", "success");
+            // Volta para a tela de consulta e recarrega para ver o status PENDENTE ao vivo
+            switchView('view-consult');
+            consultarEstudante(); 
+        } else {
+            showToast(res.erro || "Falha ao enviar os documentos.", "error");
+            btn.innerHTML = "TENTAR NOVAMENTE";
+            btn.disabled = false;
+        }
+    } catch(e) {
+        showToast("Erro de ligação com a Secretaria.", "error");
+        btn.innerHTML = "TENTAR NOVAMENTE";
+        btn.disabled = false;
+    }
 }
 
 // ========================================================================
@@ -1432,7 +1577,7 @@ async function carregarDashboard() {
     window.dadosBI = st.dataMart || []; 
     renderizarDashboardUI(st);
     switchView('view-dashboard');
-    gerarChipsDinamicos(); // V9.0.6: Garante chips imediatos via RAM
+    gerarChipsDinamicos(); 
     
     apiCall("getDashboardStats").then(res => {
         if (res.sucesso) {
@@ -1479,8 +1624,6 @@ function renderizarDashboardUI(stats) {
   desenharGraficos(stats.graficos);
 }
 
-// 7.1 MOTOR DE BUSINESS INTELLIGENCE (ANÁLISE CRUZADA NO FRONTEND)
-
 // Dicionário de Tradução Universal (Resolve conflitos de strings gigantes)
 const mapaDias = {
     "segunda": "Seg", "seg": "Seg",
@@ -1496,7 +1639,7 @@ function normalizarDia(texto) {
     for (let chave in mapaDias) {
         if (t.includes(chave)) return mapaDias[chave];
     }
-    return texto.trim(); // Se não achar no dicionário, devolve o original limpo
+    return texto.trim(); 
 }
 
 function gerarChipsDinamicos() {
