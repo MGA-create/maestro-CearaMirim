@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --primary: #0A3D6B;       
+  --primary: #0A3D6B;        
   --secondary: #F8F9FA;     
   --accent: #F29900;        
   --success: #10B981;       
@@ -176,8 +176,13 @@ body {
 .dark-card .info strong { color: white; }
 .dark-card .info span { color: #aaa; }
 
-/* COMPONENTES DE FORMULÁRIO */
-.form-card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; }
+/* COMPONENTES DE FORMULÁRIO E MODAIS */
+/* V9.2.5: Adicionado max-height para evitar que modais saiam do ecrã */
+.form-card { 
+  background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+  margin-bottom: 15px; box-sizing: border-box;
+}
+
 .form-header { text-align: center; margin-bottom: 20px; }
 .form-header h2 { margin: 0 0 5px 0; font-size: 18px; color: var(--primary); font-weight: 700; text-transform: uppercase; }
 .form-header p { margin: 0; font-size: 12px; color: var(--text-sub); }
