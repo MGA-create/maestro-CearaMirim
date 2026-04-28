@@ -1,9 +1,9 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.2 (HEADLESS REST - RESGATE DOCUMENTAL)
+// 0. CONFIGURAÇÕES DA API V9.2.2 (LOGÍSTICA & RESGATE)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxrsAN03qLJWMrYr0fBYyaYeqHlqvcrFQ92ZRLTJGsUdyoBnx_8Ij9uP703UyBgAms/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyBlTvAmqLGARwxgVkedRLj8vuBt9E1izt9rElKSsnmKJUALK8a2EuJd9Uo_PN44_32/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -465,7 +465,6 @@ let arquivosParaResgate = {};
 
 function abrirPortalResgate() {
     switchView('view-resgate');
-    // Limpa estado anterior
     arquivosParaResgate = {};
     document.querySelectorAll("input[type='checkbox'][id^='chk-resgate-']").forEach(chk => chk.checked = false);
     document.querySelectorAll("div[id^='box-resgate-']").forEach(box => box.classList.add('hidden'));
@@ -511,7 +510,7 @@ function processarArquivoResgate(inputElement, tipoDoc) {
         return;
     }
 
-    if (file.size > 5 * 1024 * 1024) { // 5MB Limit
+    if (file.size > 5 * 1024 * 1024) { 
         showToast("O arquivo é muito grande (Máximo 5MB).", "error");
         inputElement.value = "";
         delete arquivosParaResgate[tipoDoc];
@@ -548,7 +547,6 @@ function processarArquivoResgate(inputElement, tipoDoc) {
 
 function verificarBotaoResgate() {
     const btn = document.getElementById('btn-enviar-resgate');
-    // Verifica se há pelo menos um documento válido na gaveta de memória
     if (Object.keys(arquivosParaResgate).length > 0) {
         btn.disabled = false;
         btn.style.opacity = "1";
@@ -583,7 +581,6 @@ async function enviarArquivosResgate() {
 
         if (res.sucesso) {
             showToast(res.msg || "Documentos enviados com sucesso!", "success");
-            // Volta para a tela de consulta e recarrega para ver o status PENDENTE ao vivo
             switchView('view-consult');
             consultarEstudante(); 
         } else {
@@ -1181,7 +1178,7 @@ function pararTransmissaoGpsE_Radar(matarRadarTambem = true) {
 }
 
 // ========================================================================
-// 6. MODO FISCAL - OMNI-SCANNER & BUSCA INTELIGENTE
+// 6. MODO FISCAL E ADMINISTRAÇÃO AVANÇADA (V9.2.2)
 // ========================================================================
 let html5QrcodeScanner = null;
 
@@ -1342,6 +1339,50 @@ function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal) {
       </div>
       <div class="wallet-footer">${statusBadge}${relogioAntiPrint}</div>
     </div>`;
+}
+
+// ------------------------------------------------------------------------
+// NOVO: Funções de Encerramento Manual de Rota (V9.2.2)
+// ------------------------------------------------------------------------
+function abrirModalEncerrarRota() {
+    document.getElementById('modal-encerrar-rota').classList.remove('hidden');
+    document.getElementById('input-encerrar-onibus').value = '';
+}
+
+function fecharModalEncerrarRota() {
+    document.getElementById('modal-encerrar-rota').classList.add('hidden');
+    const btn = document.getElementById('btn-enviar-encerramento');
+    btn.innerHTML = 'CONFIRMAR FIM DE ROTA';
+    btn.disabled = false;
+}
+
+async function dispararEncerramentoRota() {
+    const idBus = document.getElementById('input-encerrar-onibus').value.trim().toUpperCase();
+    const btn = document.getElementById('btn-enviar-encerramento');
+    
+    if (!idBus) {
+        showToast("Digite o identificador do autocarro.", "error");
+        return;
+    }
+    
+    btn.innerHTML = 'A PROCESSAR DESEMBARQUE... ⏳';
+    btn.disabled = true;
+    
+    try {
+        const res = await apiCall("encerrarRotaManual", { idOnibus: idBus });
+        if (res.sucesso) {
+            showToast(res.msg, "success");
+            fecharModalEncerrarRota();
+        } else {
+            showToast(res.erro || "Falha ao encerrar a rota.", "error");
+            btn.innerHTML = 'TENTAR NOVAMENTE';
+            btn.disabled = false;
+        }
+    } catch(e) {
+        showToast("Erro de ligação com a base de dados.", "error");
+        btn.innerHTML = 'TENTAR NOVAMENTE';
+        btn.disabled = false;
+    }
 }
 
 // ========================================================================
@@ -1767,8 +1808,26 @@ function desenharGraficos(graficos) {
 }
 
 // ========================================================================
-// 8. MOTOR DE NOTIFICAÇÕES PUSH (FIREBASE V8.7)
+// 8. MOTOR DE NOTIFICAÇÕES PUSH E UTILITÁRIOS
 // ========================================================================
+
+function formatarNome(nomeCompleto) {
+  if (!nomeCompleto) return "Estudante";
+  const partes = nomeCompleto.trim().split(" ");
+  if (partes.length === 1) return partes[0];
+  return partes[0] + " " + partes[partes.length - 1];
+}
+
+let toastTimeout;
+function showToast(msg, type = 'info') {
+  const toast = document.getElementById('toast');
+  toast.innerText = msg;
+  toast.style.background = type === 'error' ? 'var(--danger)' : type === 'success' ? 'var(--success)' : '#333';
+  toast.style.display = 'block';
+  
+  if(toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { toast.style.display = 'none'; }, 3500);
+}
 
 async function inicializarPushNotifications() {
   const firebaseConfig = {
