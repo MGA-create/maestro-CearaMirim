@@ -177,7 +177,6 @@ body {
 .dark-card .info span { color: #aaa; }
 
 /* COMPONENTES DE FORMULÁRIO E MODAIS */
-/* V9.2.5: Adicionado max-height para evitar que modais saiam do ecrã */
 .form-card { 
   background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
   margin-bottom: 15px; box-sizing: border-box;
@@ -205,11 +204,36 @@ body {
 
 .btn-text { width: 100%; background: none; border: none; padding: 10px; color: var(--text-sub); font-size: 13px; text-decoration: underline; cursor: pointer; }
 
-/* MODO FISCAL (DARK MODE) */
+/* MODO FISCAL E MODERADOR (DARK MODE) */
 .dark-form { background: var(--bg-dark); border: 1px solid #333; }
 .dark-form .form-header h2 { color: var(--accent); }
 .dark-form .input-field { background: var(--card-dark); color: white; border-color: #333; }
 .dark-form .input-field:focus { border-color: var(--accent); }
+.dark-form .label-sm { color: #ccc !important; }
+
+/* V9.2.6: COMPONENTES DA MESA DE AUDITORIA E MODERADOR */
+.auditoria-linha {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 15px; background: #fff; border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.auditoria-info { flex-grow: 1; overflow: hidden; }
+.auditoria-nome { font-size: 14px; font-weight: 600; color: var(--primary); margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.auditoria-data { font-size: 10px; color: var(--text-sub); display: block; }
+.auditoria-badge { font-size: 10px; padding: 4px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase; white-space: nowrap; margin-left: 10px; }
+
+/* TOGGLES (Interruptores iOS Style - Importados do sidebar antigo) */
+.switch-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.switch-row:last-child { border-bottom: none; }
+.switch-row .desc-xs { margin-top: 0; font-size: 13px; font-weight: 500; color: var(--text-main); }
+
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0;}
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #D1D5DB; transition: .3s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
+input:checked + .slider { background-color: var(--success); }
+input:checked + .slider:before { transform: translateX(20px); }
+input:disabled + .slider { opacity: 0.5; cursor: not-allowed; }
 
 /* DASHBOARD ANALÍTICO */
 .dash-kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
@@ -230,7 +254,7 @@ body {
 
 /* TOAST E EXTRAS */
 .error-box { background: #FEE2E2; color: var(--danger); padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; text-align: center; border: 1px solid #F87171; margin-bottom: 10px; }
-.divider-text { text-align: center; font-size: 11px; color: #666; letter-spacing: 1px; margin: 15px 0; }
+.divider-text { text-align: center; font-size: 11px; color: #666; letter-spacing: 1px; margin: 15px 0; font-weight: bold; }
 .result-container { margin-top: 15px; width: 100%; }
 
 #toast {
@@ -239,7 +263,7 @@ body {
   font-size: 13px; font-weight: 500; z-index: 9999; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); text-align: center;
 }
 
-/* CARTEIRA DIGITAL, TIMELINE E AVISOS */
+/* CARTEIRA DIGITAL E TIMELINE */
 .timeline { position: relative; padding-left: 25px; margin-top: 15px; }
 .timeline-item { padding-bottom: 20px; font-size: 13px; position: relative; }
 .timeline-item::before { content: ''; position: absolute; left: -25px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--border); }
@@ -271,6 +295,7 @@ body {
 .skeleton-box { background: linear-gradient(90deg, #1e1e1e 25%, #2a2a2a 50%, #1e1e1e 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
 @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
+/* AVISOS DO MURAL */
 .aviso-card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 12px; border-left: 5px solid var(--accent); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 .aviso-urgente { border-left-color: var(--danger); }
 .aviso-transporte { border-left-color: var(--primary); }
@@ -294,37 +319,15 @@ body {
   height: auto;
 }
 
-/* ========================================== */
-/* V9.0: CHIPS DE FILTRO BI (DARK MODE)       */
-/* ========================================== */
-.chip-group {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
+/* V9.0: CHIPS DE FILTRO BI E AUDITORIA */
+.chip-group { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip-filter {
-  background: #2a2a2a;
-  color: #ccc;
-  border: 1px solid #444;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
+  background: #2a2a2a; color: #ccc; border: 1px solid #444; padding: 6px 14px;
+  border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: all 0.2s ease; user-select: none; -webkit-tap-highlight-color: transparent;
 }
-
-.chip-filter:hover {
-  background: #333;
-}
-
+.chip-filter:hover { background: #333; }
 .chip-filter.chip-active {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(242, 153, 0, 0.3);
+  background: var(--accent); color: white; border-color: var(--accent);
+  font-weight: 600; box-shadow: 0 2px 8px rgba(242, 153, 0, 0.3);
 }
