@@ -211,7 +211,7 @@ body {
 .dark-form .input-field:focus { border-color: var(--accent); }
 .dark-form .label-sm { color: #ccc !important; }
 
-/* V9.2.6: COMPONENTES DA MESA DE AUDITORIA E MODERADOR */
+/* V9.2.7: COMPONENTES DA MESA DE AUDITORIA E MODERADOR */
 .auditoria-linha {
     display: flex; align-items: center; justify-content: space-between;
     padding: 15px; background: #fff; border: 1px solid var(--border);
@@ -221,6 +221,25 @@ body {
 .auditoria-nome { font-size: 14px; font-weight: 600; color: var(--primary); margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .auditoria-data { font-size: 10px; color: var(--text-sub); display: block; }
 .auditoria-badge { font-size: 10px; padding: 4px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase; white-space: nowrap; margin-left: 10px; }
+
+/* Novo Botão em estilo "Chip" para os Anexos na Mesa de Auditoria */
+.btn-chip-anexo {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: auto;
+    margin: 0;
+}
+.btn-chip-anexo:hover { background: #e2e8f0; color: #1e293b; border-color: #94a3b8; }
 
 /* TOGGLES (Interruptores iOS Style - Importados do sidebar antigo) */
 .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
