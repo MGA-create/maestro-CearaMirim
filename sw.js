@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * SERVICE WORKER - PORTAL MAESTRO (V9.2.5 - PUSH & OFFLINE-FIRST)
+ * SERVICE WORKER - PORTAL MAESTRO (V9.2.6 - RBAC & MESA DE AUDITORIA)
  * Responsável pelo cache da aplicação e por receber Notificações em Background.
  * ============================================================================
  */
@@ -24,7 +24,8 @@ try {
   console.log("Firebase SW já inicializado ou erro na configuração.");
 }
 
-const CACHE_NAME = 'maestro-cache-v9.2.5'; // Atualizado para a nova fase
+// V9.2.6: NOME ATUALIZADO PARA FORÇAR DOWNLOAD DA NOVA INTERFACE WEB
+const CACHE_NAME = 'maestro-cache-v9.2.6'; 
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
