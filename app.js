@@ -1,9 +1,9 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.2.5 (NOTIFICAÇÕES & PUSH)
+// 0. CONFIGURAÇÕES DA API V9.2.6 (RBAC & MESA DE AUDITORIA)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyQ1GPP4cfv8TvKTwJRdp49St_O7SC1ZhdC-9UMldeihiX7ZfBmh64vIAJkIr9pU1eZ/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzzZ64vRY8AOqOK-vaGc-1nOcbxtVW0210BMqa9dyYoU-q7w6phxHkQMNx4XRAqmTpH/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -27,18 +27,22 @@ async function apiCall(action, payload = {}) {
 
     const data = await response.json();
     
-    if (data.status === 401) {
+    if (data.status === 401 || data.status === 403) {
       if (action === "invalidarTokenSessao") {
         return { sucesso: true };
       } else {
-        if (localStorage.getItem("MAESTRO_EST_TOKEN")) {
-            sairCarteira(true);
-            showToast("A sua sessão de estudante expirou. Por favor, aceda novamente.", "error");
+        if (data.status === 403) {
+            showToast(data.erro || "Acesso negado para o seu nível de utilizador.", "error");
         } else {
-            encerrarSessaoOperador(true);
-            showToast(data.erro || "Sessão expirada. A redirecionar...", "error");
+            if (localStorage.getItem("MAESTRO_EST_TOKEN")) {
+                sairCarteira(true);
+                showToast("A sua sessão de estudante expirou.", "error");
+            } else {
+                encerrarSessaoOperador(true);
+                showToast("Sessão expirada. A redirecionar...", "error");
+            }
         }
-        throw new Error("Sessão Expirada");
+        throw new Error(data.erro || "Sessão Expirada ou Acesso Negado");
       }
     }
     
@@ -55,11 +59,9 @@ async function apiCall(action, payload = {}) {
 
 let deferredPrompt; 
 
-// CORREÇÃO: Ouve o evento de instalação imediatamente ao carregar a página
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  // Mostra o botão/banner assim que o navegador permite
   const banner = document.getElementById('pwa-install-banner');
   if (banner) banner.classList.remove('hidden');
 });
@@ -147,9 +149,6 @@ function instalarPWA() {
   });
 }
 
-// ========================================================================
-// 2. MOTOR DE NAVEGAÇÃO SPA E AVISOS
-// ========================================================================
 function switchView(viewId) {
   const views = document.querySelectorAll('.view-section');
   views.forEach(v => {
@@ -215,12 +214,31 @@ async function carregarAvisosSMEB() {
 }
 
 // ========================================================================
-// 3. MÓDULO DE SEGURANÇA SAAS E AUTO-CURA
+// 3. MÓDULO DE SEGURANÇA SAAS & RBAC (V9.2.6)
 // ========================================================================
 const TOKEN_KEY = "MAESTRO_OP_TOKEN";
 const CACHE_LISTA_KEY = "MAESTRO_CACHE_FISCAL"; 
 const CACHE_STATS_KEY = "MAESTRO_DASH_STATS_V9"; 
+const NIVEL_KEY = "MAESTRO_OP_NIVEL";
 let timeoutSessaoID = null;
+
+function aplicarFiltrosRBAC() {
+    const nivelAtual = localStorage.getItem(NIVEL_KEY) || "FISCAL";
+    const nivelUpper = nivelAtual.toUpperCase().trim();
+    
+    const grupoSec = document.getElementById('menu-grupo-secretaria');
+    const grupoMod = document.getElementById('menu-grupo-moderador');
+    
+    if (grupoSec) grupoSec.classList.add('hidden');
+    if (grupoMod) grupoMod.classList.add('hidden');
+    
+    if (nivelUpper === "OPERADOR" || nivelUpper === "SUPERVISOR" || nivelUpper === "MODERADOR") {
+        if (grupoSec) grupoSec.classList.remove('hidden');
+    }
+    if (nivelUpper === "MODERADOR") {
+        if (grupoMod) grupoMod.classList.remove('hidden');
+    }
+}
 
 async function fazerLoginOperador() {
   const email = document.getElementById('fiscal-email').value.trim();
@@ -250,6 +268,7 @@ async function fazerLoginOperador() {
     }
 
     localStorage.setItem(TOKEN_KEY, resAuth.token);
+    localStorage.setItem(NIVEL_KEY, resAuth.nivel); // V9.2.6: Salva a patente
     document.getElementById('nome-operador-logado').innerText = resAuth.nome;
     
     if (resAuth.stats) {
@@ -269,8 +288,9 @@ async function fazerLoginOperador() {
        document.getElementById('fiscal-senha').value = "";
        
        armarRelogioSessaoLocal();
+       aplicarFiltrosRBAC(); // Aplica a visualização consoante a patente
        switchView('view-admin-hub');
-       showToast("Sessão iniciada.", "success");
+       showToast("Sessão iniciada como: " + resAuth.nivel, "success");
     }
 
   } catch(err) {
@@ -289,6 +309,7 @@ async function verificarSessaoAtiva() {
     const sessao = await apiCall("validarTokenSessao");
     if (sessao.sucesso && sessao.valido) {
       armarRelogioSessaoLocal();
+      aplicarFiltrosRBAC(); 
       if(document.getElementById('id-fiscal') && document.getElementById('id-fiscal').value !== "") {
         switchView('view-fiscal'); 
         validarFiscal();
@@ -313,6 +334,7 @@ async function encerrarSessaoOperador(silencioso = false) {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(CACHE_LISTA_KEY);
   localStorage.removeItem(CACHE_STATS_KEY);
+  localStorage.removeItem(NIVEL_KEY); 
   localStorage.removeItem("MAESTRO_SEMENTE_FISCAL"); 
   if (timeoutSessaoID) clearTimeout(timeoutSessaoID);
   fecharScanner();
@@ -326,7 +348,223 @@ async function encerrarSessaoOperador(silencioso = false) {
 }
 
 // ========================================================================
-// 4. FLUXO DE CONSULTA DO ESTUDANTE
+// 4. MESA DE AUDITORIA & GESTÃO DOCUMENTAL (V9.2.6 - WEB)
+// ========================================================================
+
+let arrayAlunosAuditoria = [];
+
+function abrirMesaAuditoria() {
+    switchView('view-auditoria');
+    carregarFilaAuditoria();
+}
+
+async function carregarFilaAuditoria(ehPesquisa = false) {
+    const container = document.getElementById('auditoria-fila-container');
+    const inputPesquisa = document.getElementById('auditoria-pesquisa').value.trim();
+    const termo = ehPesquisa ? inputPesquisa : "";
+    
+    container.innerHTML = '<div class="text-center" style="padding: 30px;"><div class="loader" style="margin: 0 auto;"></div><p style="font-size: 11px; margin-top: 10px;">A puxar a fila de trabalho...</p></div>';
+    
+    try {
+        const res = await apiCall("getListaAuditoria", { pesquisa: termo });
+        if (res.sucesso) {
+            arrayAlunosAuditoria = res.lista;
+            renderizarListaAuditoria();
+        } else {
+            container.innerHTML = `<div class="error-box">Erro: ${res.erro}</div>`;
+        }
+    } catch(e) {
+        container.innerHTML = `<div class="error-box">Falha ao ligar à base de dados.</div>`;
+    }
+}
+
+function renderizarListaAuditoria() {
+    const container = document.getElementById('auditoria-fila-container');
+    
+    if (!arrayAlunosAuditoria || arrayAlunosAuditoria.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 30px; background: #fff; border: 1px dashed #ccc; border-radius: 8px;"><h3 style="color: var(--success); margin:0;">🎉 Fila Vazia!</h3><p style="font-size: 12px; color: #666;">Todos os pedidos foram atendidos.</p></div>`;
+        return;
+    }
+    
+    let html = '';
+    arrayAlunosAuditoria.forEach(aluno => {
+        let corBadge = '#333'; let bgBadge = '#f0f0f0';
+        if (aluno.statusAuditoria === "ANALISE_HUMANA" || aluno.statusAuditoria === "PENDENCIA") { corBadge = '#d97706'; bgBadge = '#fef3c7'; }
+        else if (aluno.statusAuditoria === "ALERTA_FRAUDE" || aluno.statusAtividade === "SUSPENSO") { corBadge = '#dc2626'; bgBadge = '#fee2e2'; }
+        else if (aluno.statusAuditoria === "PENDENTE") { corBadge = '#4b5563'; bgBadge = '#f3f4f6'; }
+        else if (aluno.statusAtividade === "ATIVO") { corBadge = '#059669'; bgBadge = '#d1fae5'; }
+        
+        let d = new Date(aluno.timestamp);
+        let strData = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+        if (isNaN(d.getTime()) || aluno.timestamp === 0) strData = "Sem data registada";
+
+        html += `
+        <div class="auditoria-linha">
+            <div class="auditoria-info">
+                <h4 class="auditoria-nome">${aluno.nome}</h4>
+                <span class="auditoria-data">Submetido: ${strData}</span>
+                <span class="auditoria-badge" style="color: ${corBadge}; background: ${bgBadge}; margin-left: 0; display: inline-block; margin-top: 4px;">${aluno.statusAuditoria}</span>
+            </div>
+            <button class="btn-solid" style="width: auto; margin: 0; padding: 8px 12px; font-size: 11px;" onclick="abrirModalRaioX(${aluno.linhaBase})">Detalhar 🔍</button>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+function abrirModalRaioX(linhaBase) {
+    const aluno = arrayAlunosAuditoria.find(a => a.linhaBase === linhaBase);
+    if (!aluno) return;
+    
+    document.getElementById('rx-nome').innerText = aluno.nome;
+    document.getElementById('rx-cpf').innerText = aluno.cpf;
+    document.getElementById('rx-matricula').innerText = aluno.matricula;
+    document.getElementById('rx-email').innerText = aluno.email;
+    document.getElementById('rx-logistica').innerText = `${aluno.instituicao} • ${aluno.turno}`;
+    document.getElementById('rx-status-badge').innerText = aluno.statusAtividade;
+    
+    document.getElementById('rx-novo-status').value = aluno.statusAtividade;
+    document.getElementById('rx-notas').value = aluno.observacoes;
+    document.getElementById('rx-linha-base').value = linhaBase;
+    
+    // Gerar Botões de Anexo (Túnel Base64)
+    let anexoHtml = '';
+    ['FOTO', 'DOCUMENTO', 'VINCULO', 'RESIDENCIA', 'ESTAGIO', 'LAUDO'].forEach(tipo => {
+        anexoHtml += `<button class="btn-secondary" style="width: calc(50% - 4px); margin: 0; font-size: 10px; padding: 6px;" onclick="abrirDocumentoSeguro(${linhaBase}, '${tipo}')">Ver ${tipo}</button>`;
+    });
+    document.getElementById('rx-documentos-grid').innerHTML = anexoHtml;
+    
+    document.getElementById('modal-raio-x-aluno').classList.remove('hidden');
+}
+
+function fecharModalRaioX() {
+    document.getElementById('modal-raio-x-aluno').classList.add('hidden');
+}
+
+async function abrirDocumentoSeguro(linhaBase, tipoDoc) {
+    const docViewer = document.getElementById('modal-doc-viewer');
+    const contentBox = document.getElementById('doc-viewer-content');
+    
+    document.getElementById('doc-viewer-title').innerText = "A descarregar: " + tipoDoc;
+    contentBox.innerHTML = '<div class="loader"></div>';
+    docViewer.classList.remove('hidden');
+    
+    try {
+        const res = await apiCall("verFicheiroBase64", { linhaEstudante: linhaBase, tipoDocumento: tipoDoc });
+        
+        if (res.sucesso && res.base64) {
+            document.getElementById('doc-viewer-title').innerText = tipoDoc;
+            const fullBase64 = `data:${res.mimeType};base64,${res.base64}`;
+            
+            if (res.mimeType.includes("image")) {
+                contentBox.innerHTML = `<img src="${fullBase64}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+            } else if (res.mimeType.includes("pdf")) {
+                contentBox.innerHTML = `<embed src="${fullBase64}" width="100%" height="100%" type="application/pdf">`;
+            } else {
+                contentBox.innerHTML = `<div class="error-box">Formato não suportado: ${res.mimeType}</div>`;
+            }
+        } else {
+            contentBox.innerHTML = `<div class="error-box">Erro: ${res.erro}</div>`;
+        }
+    } catch(e) {
+        contentBox.innerHTML = `<div class="error-box">Falha de rede. Tente novamente.</div>`;
+    }
+}
+
+function fecharModalDocViewer() {
+    document.getElementById('modal-doc-viewer').classList.add('hidden');
+    document.getElementById('doc-viewer-content').innerHTML = ''; // Limpa memória Base64
+}
+
+async function gravarDecisaoAuditoria() {
+    const linhaBase = document.getElementById('rx-linha-base').value;
+    const novoStatus = document.getElementById('rx-novo-status').value;
+    const notas = document.getElementById('rx-notas').value;
+    
+    showToast("A gravar e a notificar o estudante...", "loading");
+    
+    try {
+        const res = await apiCall("atualizarStatusAluno", { linhaEstudante: parseInt(linhaBase), novoStatus: novoStatus, notasOperador: notas });
+        if (res.sucesso) {
+            showToast("Alteração guardada com sucesso!", "success");
+            fecharModalRaioX();
+            // Atualiza a fila local visualmente sem fazer novo pedido à API
+            const alunoIndex = arrayAlunosAuditoria.findIndex(a => a.linhaBase === parseInt(linhaBase));
+            if (alunoIndex !== -1) {
+                arrayAlunosAuditoria[alunoIndex].statusAtividade = novoStatus;
+                if (novoStatus === "ATIVO") arrayAlunosAuditoria[alunoIndex].statusAuditoria = "OK";
+                renderizarListaAuditoria();
+            }
+        } else {
+            showToast(res.erro || "Falha ao gravar.", "error");
+        }
+    } catch (e) {
+        showToast("Erro na ligação ao servidor.", "error");
+    }
+}
+
+function acionarIAParaEmail() {
+    const notasTexto = document.getElementById('rx-notas').value.trim();
+    if (!notasTexto) {
+        showToast("Escreva o motivo da retenção nas notas primeiro.", "error");
+        return;
+    }
+    
+    const linhaBase = parseInt(document.getElementById('rx-linha-base').value);
+    const btnIa = document.querySelector("button[onclick='acionarIAParaEmail()']");
+    btnIa.innerText = "A Redigir... ⏳";
+    btnIa.disabled = true;
+    
+    // Como a IA pesada reside no serviceAI.gs, passamos isto para a API
+    apiCall("enviarParecerOperador", { linhaEstudante: linhaBase, textoRevisado: notasTexto })
+        .then(res => {
+            if (res.sucesso) {
+                showToast("E-mail disparado para o estudante!", "success");
+            } else {
+                showToast(res.erro, "error");
+            }
+            btnIa.innerText = "✨ Gerar E-mail IA";
+            btnIa.disabled = false;
+        }).catch(e => {
+            showToast("Falha ao comunicar com motor de E-mails.", "error");
+            btnIa.innerText = "✨ Gerar E-mail IA";
+            btnIa.disabled = false;
+        });
+}
+
+// ========================================================================
+// 5. MÓDULO DO MODERADOR (SALA DAS MÁQUINAS V9.2.6)
+// ========================================================================
+
+function abrirPainelModerador() {
+    switchView('view-moderador');
+}
+
+async function forcarMotor(motorId) {
+    showToast(`A enviar sinal para o motor ${motorId}...`, "info");
+    try {
+        const res = await apiCall("forcarExecucaoMotor", { motorId: motorId });
+        if (res.sucesso) showToast(res.msg, "success");
+        else showToast(res.erro, "error");
+    } catch(e) {
+        showToast("Ocorreu um erro ao acionar o motor.", "error");
+    }
+}
+
+async function alterarMotor(motorId, isLigado) {
+    showToast(`A alterar configurações de ${motorId}...`, "info");
+    try {
+        const res = await apiCall("alterarEstadoMotor", { motorId: motorId, ligado: isLigado });
+        if (res.sucesso) showToast(res.msg, "success");
+        else showToast(res.erro, "error");
+    } catch(e) {
+        showToast("Ocorreu um erro ao alterar o motor.", "error");
+    }
+}
+
+
+// ========================================================================
+// 6. FLUXO DE CONSULTA DO ESTUDANTE
 // ========================================================================
 async function consultarEstudante() {
   const alvo = document.getElementById('id-estudante').value.trim();
@@ -350,7 +588,6 @@ async function consultarEstudante() {
       return;
     }
     
-    // V9.2.5: Se assinalou a checkbox, tenta registar o Push usando o CPF como identificador
     if (checkboxPush && checkboxPush.checked) {
        solicitarConsentimentoPushAnonimo(alvo);
     }
@@ -363,7 +600,6 @@ async function consultarEstudante() {
   }
 }
 
-// V9.2.5: Registo de Push via Checkbox do Estudante
 async function solicitarConsentimentoPushAnonimo(cpf) {
   try {
     if (typeof firebase === 'undefined' || !firebase.messaging.isSupported()) return;
@@ -372,7 +608,6 @@ async function solicitarConsentimentoPushAnonimo(cpf) {
     if (permission === 'granted') {
       const token = await messaging.getToken({ vapidKey: window.FIREBASE_VAPID_KEY });
       if (token) {
-        // Envia o CPF em vez do ID_CARTEIRA para a API
         await apiCall("registrarPushToken", { idEstudante: cpf, pushToken: token });
       }
     }
@@ -485,7 +720,7 @@ function mostrarErroEstudante(titulo, mensagem) {
 }
 
 // ========================================================================
-// 4.1. MÓDULO DE RESGATE DOCUMENTAL (V9.2)
+// 7. MÓDULO DE RESGATE DOCUMENTAL (V9.2)
 // ========================================================================
 
 let arquivosParaResgate = {};
@@ -623,7 +858,7 @@ async function enviarArquivosResgate() {
 }
 
 // ========================================================================
-// 5. FLUXO DA CARTEIRA DIGITAL (COFRE OFFLINE-FIRST)
+// 8. FLUXO DA CARTEIRA DIGITAL (COFRE OFFLINE-FIRST)
 // ========================================================================
 let currentWalletId = "";
 let currentWalletSenha = "";
@@ -889,7 +1124,7 @@ async function sairCarteira(expiracaoSilenciosa = false) {
 }
 
 // ========================================================================
-// 5.1. MOTOR DE MOBILIDADE: RADAR E ETA 
+// 8.1. MOTOR DE MOBILIDADE: RADAR E ETA 
 // ========================================================================
 
 let onibusSelecionadoGPS = null;
@@ -1205,7 +1440,7 @@ function pararTransmissaoGpsE_Radar(matarRadarTambem = true) {
 }
 
 // ========================================================================
-// 6. MODO FISCAL E ADMINISTRAÇÃO AVANÇADA (V9.2.4)
+// 9. MODO FISCAL E ADMINISTRAÇÃO AVANÇADA (V9.2.4)
 // ========================================================================
 let html5QrcodeScanner = null;
 
@@ -1440,7 +1675,7 @@ async function dispararEncerramentoRota() {
 }
 
 // ========================================================================
-// 6.1. MOTOR DE CRISES E AVISOS PUSH (V9.2.5)
+// 10. MOTOR DE CRISES E AVISOS PUSH (V9.2.5)
 // ========================================================================
 function abrirModalSOS() {
     document.getElementById('modal-sos-fiscal').classList.remove('hidden');
@@ -1791,7 +2026,7 @@ function votarNoMural(idMensagem, tipoVoto) {
 }
 
 // ========================================================================
-// 7. MOTOR DO DASHBOARD ANALÍTICO (V9.0 - COM BUSINESS INTELLIGENCE)
+// 11. MOTOR DO DASHBOARD ANALÍTICO E BI
 // ========================================================================
 let myCharts = {}; 
 
@@ -1863,7 +2098,6 @@ function renderizarDashboardUI(stats) {
   desenharGraficos(stats.graficos);
 }
 
-// Dicionário de Tradução Universal (Resolve conflitos de strings gigantes)
 const mapaDias = {
     "segunda": "Seg", "seg": "Seg",
     "terça": "Ter", "terca": "Ter", "ter": "Ter",
@@ -2006,7 +2240,7 @@ function desenharGraficos(graficos) {
 }
 
 // ========================================================================
-// 8. MOTOR DE NOTIFICAÇÕES PUSH E UTILITÁRIOS
+// 12. UTILITÁRIOS GLOBAIS
 // ========================================================================
 
 function formatarNome(nomeCompleto) {
@@ -2020,7 +2254,7 @@ let toastTimeout;
 function showToast(msg, type = 'info') {
   const toast = document.getElementById('toast');
   toast.innerText = msg;
-  toast.style.background = type === 'error' ? 'var(--danger)' : type === 'success' ? 'var(--success)' : '#333';
+  toast.style.background = type === 'error' ? 'var(--danger)' : type === 'success' ? 'var(--success)' : type === 'warning' ? '#f59e0b' : '#333';
   toast.style.display = 'block';
   
   if(toastTimeout) clearTimeout(toastTimeout);
