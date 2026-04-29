@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxC09eP0_NTtV2rHEDGA0apXTX4MYlU0NoYnU0_IBvyZM20I5V1KC1rCBx3n6ojAhXG/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzAhtbeVpOYoJo0CwaqqUU2vPN3RqRBZUFKZqabz_1injLYHdETH-RYBuboAp-1NL42/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
