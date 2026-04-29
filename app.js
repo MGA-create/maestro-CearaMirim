@@ -1,9 +1,9 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.2.6 (RBAC & MESA DE AUDITORIA)
+// 0. CONFIGURAÇÕES DA API V9.2.7 (SALA DAS MÁQUINAS SINCRONIZADA)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzAhtbeVpOYoJo0CwaqqUU2vPN3RqRBZUFKZqabz_1injLYHdETH-RYBuboAp-1NL42/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxcFE2HJms5jdL2WRRQXBqOeaOiizaEVUHWQ68RaPvdyMkbRobSPSgehwsKo3Tmj-rh/exec";
 
 async function apiCall(action, payload = {}) {
   let tokenToUse = localStorage.getItem("MAESTRO_OP_TOKEN");
@@ -268,7 +268,7 @@ async function fazerLoginOperador() {
     }
 
     localStorage.setItem(TOKEN_KEY, resAuth.token);
-    localStorage.setItem(NIVEL_KEY, resAuth.nivel); // V9.2.6: Salva a patente
+    localStorage.setItem(NIVEL_KEY, resAuth.nivel);
     document.getElementById('nome-operador-logado').innerText = resAuth.nome;
     
     if (resAuth.stats) {
@@ -288,7 +288,7 @@ async function fazerLoginOperador() {
        document.getElementById('fiscal-senha').value = "";
        
        armarRelogioSessaoLocal();
-       aplicarFiltrosRBAC(); // Aplica a visualização consoante a patente
+       aplicarFiltrosRBAC(); 
        switchView('view-admin-hub');
        showToast("Sessão iniciada como: " + resAuth.nivel, "success");
     }
@@ -348,10 +348,21 @@ async function encerrarSessaoOperador(silencioso = false) {
 }
 
 // ========================================================================
-// 4. MESA DE AUDITORIA & GESTÃO DOCUMENTAL (V9.2.6 - WEB)
+// 4. MESA DE AUDITORIA & GESTÃO DOCUMENTAL (V9.2.7 - WEB)
 // ========================================================================
 
 let arrayAlunosAuditoria = [];
+
+// V9.2.7: Função de formatação para corrigir "ARTur silva Do Nascimento"
+function formatarNomeProprio(nome) {
+  if (!nome) return "Estudante";
+  const preposicoes = ["da", "de", "do", "das", "dos", "e"];
+  return nome.toString().toLowerCase().split(' ').map(function(palavra) {
+    if (palavra === "") return "";
+    if (preposicoes.indexOf(palavra) !== -1) return palavra;
+    return palavra.charAt(0).toUpperCase() + palavra.slice(1);
+  }).join(' ').trim();
+}
 
 function abrirMesaAuditoria() {
     switchView('view-auditoria');
@@ -398,10 +409,12 @@ function renderizarListaAuditoria() {
         let strData = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
         if (isNaN(d.getTime()) || aluno.timestamp === 0) strData = "Sem data registada";
 
+        const nomeTratado = formatarNomeProprio(aluno.nome);
+
         html += `
         <div class="auditoria-linha">
             <div class="auditoria-info">
-                <h4 class="auditoria-nome">${aluno.nome}</h4>
+                <h4 class="auditoria-nome">${nomeTratado}</h4>
                 <span class="auditoria-data">Submetido: ${strData}</span>
                 <span class="auditoria-badge" style="color: ${corBadge}; background: ${bgBadge}; margin-left: 0; display: inline-block; margin-top: 4px;">${aluno.statusAuditoria}</span>
             </div>
@@ -416,7 +429,9 @@ function abrirModalRaioX(linhaBase) {
     const aluno = arrayAlunosAuditoria.find(a => a.linhaBase === linhaBase);
     if (!aluno) return;
     
-    document.getElementById('rx-nome').innerText = aluno.nome;
+    const nomeTratado = formatarNomeProprio(aluno.nome);
+
+    document.getElementById('rx-nome').innerText = nomeTratado;
     document.getElementById('rx-cpf').innerText = aluno.cpf;
     document.getElementById('rx-matricula').innerText = aluno.matricula;
     document.getElementById('rx-email').innerText = aluno.email;
@@ -427,11 +442,20 @@ function abrirModalRaioX(linhaBase) {
     document.getElementById('rx-notas').value = aluno.observacoes;
     document.getElementById('rx-linha-base').value = linhaBase;
     
-    // Gerar Botões de Anexo (Túnel Base64)
+    // Gerar Botões de Anexo com o novo design (Chips) e Sem Laudo
     let anexoHtml = '';
-    ['FOTO', 'DOCUMENTO', 'VINCULO', 'RESIDENCIA', 'ESTAGIO', 'LAUDO'].forEach(tipo => {
-        anexoHtml += `<button class="btn-secondary" style="width: calc(50% - 4px); margin: 0; font-size: 10px; padding: 6px;" onclick="abrirDocumentoSeguro(${linhaBase}, '${tipo}')">Ver ${tipo}</button>`;
-    });
+    const docsMapa = {
+        'FOTO': '🖼️ Foto',
+        'DOCUMENTO': '🪪 Doc. ID',
+        'VINCULO': '🎓 Vínculo',
+        'RESIDENCIA': '🏠 Morada',
+        'ESTAGIO': '💼 Estágio'
+    };
+    
+    for (const [chave, rotulo] of Object.entries(docsMapa)) {
+        anexoHtml += `<button class="btn-chip-anexo" onclick="abrirDocumentoSeguro(${linhaBase}, '${chave}')">${rotulo}</button>`;
+    }
+    
     document.getElementById('rx-documentos-grid').innerHTML = anexoHtml;
     
     document.getElementById('modal-raio-x-aluno').classList.remove('hidden');
@@ -488,7 +512,6 @@ async function gravarDecisaoAuditoria() {
         if (res.sucesso) {
             showToast("Alteração guardada com sucesso!", "success");
             fecharModalRaioX();
-            // Atualiza a fila local visualmente sem fazer novo pedido à API
             const alunoIndex = arrayAlunosAuditoria.findIndex(a => a.linhaBase === parseInt(linhaBase));
             if (alunoIndex !== -1) {
                 arrayAlunosAuditoria[alunoIndex].statusAtividade = novoStatus;
@@ -515,7 +538,6 @@ function acionarIAParaEmail() {
     btnIa.innerText = "A Redigir... ⏳";
     btnIa.disabled = true;
     
-    // Como a IA pesada reside no serviceAI.gs, passamos isto para a API
     apiCall("enviarParecerOperador", { linhaEstudante: linhaBase, textoRevisado: notasTexto })
         .then(res => {
             if (res.sucesso) {
@@ -533,11 +555,32 @@ function acionarIAParaEmail() {
 }
 
 // ========================================================================
-// 5. MÓDULO DO MODERADOR (SALA DAS MÁQUINAS V9.2.6)
+// 5. MÓDULO DO MODERADOR (SALA DAS MÁQUINAS V9.2.7)
 // ========================================================================
 
 function abrirPainelModerador() {
     switchView('view-moderador');
+    const loader = document.getElementById('loader-sincronizacao-motores');
+    
+    if (loader) loader.classList.remove('hidden');
+    
+    apiCall("getStatusMotores").then(res => {
+        if (res.sucesso && res.estados) {
+            const toggleETL = document.getElementById('toggle-motor-etl');
+            const toggleOCR = document.getElementById('toggle-motor-ocr');
+            const toggleDOCS = document.getElementById('toggle-motor-docs');
+            const toggleEMAIL = document.getElementById('toggle-motor-email');
+            
+            if (toggleETL) toggleETL.checked = res.estados.ETL;
+            if (toggleOCR) toggleOCR.checked = res.estados.OCR;
+            if (toggleDOCS) toggleDOCS.checked = res.estados.DOCS;
+            if (toggleEMAIL) toggleEMAIL.checked = res.estados.EMAIL;
+        }
+        if (loader) loader.classList.add('hidden');
+    }).catch(err => {
+        showToast("Não foi possível ler o estado dos motores.", "error");
+        if (loader) loader.classList.add('hidden');
+    });
 }
 
 async function forcarMotor(motorId) {
@@ -631,7 +674,7 @@ function irParaCofreComId(idAcesso) {
 }
 
 function renderizarTimelineEstudante(dados, container) {
-  const nomeLimpo = formatarNome(dados.nome).split(' ')[0];
+  const nomeLimpo = formatarNomeProprio(dados.nome).split(' ')[0];
   let html = `<h3 style="margin:0 0 15px 0; color:var(--primary);">Olá, ${nomeLimpo}!</h3>`;
   html += `<div class="timeline">`;
   
@@ -982,7 +1025,7 @@ function armarRelogioSessaoEstudante() {
 function renderizarCarteira(dados) {
   const container = document.getElementById('wallet-container');
   const actions = document.getElementById('wallet-actions');
-  const nomeTratado = formatarNome(dados.nome);
+  const nomeTratado = formatarNomeProprio(dados.nome);
   const fotoHTML = dados.fotoUrl ? `<img src="${dados.fotoUrl}" class="wallet-photo">` : `<div class="wallet-photo" style="display:flex;align-items:center;justify-content:center;color:#aaa;font-size:12px;text-align:center;">Sem Foto</div>`;
   
   let html = `
@@ -1583,7 +1626,7 @@ function gerarHtmlFiscal(nome, inst, rota, turno, fotoComponente, statusReal, ob
     let statusBadge = "";
     let relogioAntiPrint = "";
     let caixaMotivo = "";
-    const nomeTratado = formatarNome(nome);
+    const nomeTratado = formatarNomeProprio(nome);
     
     if (statusReal !== "ATIVO" && obsCompleta) {
         let motivoFiscal = extrairTextoDaTag(obsCompleta, "textofiscal");
@@ -2243,12 +2286,7 @@ function desenharGraficos(graficos) {
 // 12. UTILITÁRIOS GLOBAIS
 // ========================================================================
 
-function formatarNome(nomeCompleto) {
-  if (!nomeCompleto) return "Estudante";
-  const partes = nomeCompleto.trim().split(" ");
-  if (partes.length === 1) return partes[0];
-  return partes[0] + " " + partes[partes.length - 1];
-}
+// Removi a antiga formatarNome() porque a formatarNomeProprio() (mais robusta) foi adicionada na secção 4.
 
 let toastTimeout;
 function showToast(msg, type = 'info') {
