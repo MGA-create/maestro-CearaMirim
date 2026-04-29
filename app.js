@@ -1,5 +1,5 @@
 // ========================================================================
-// 0. CONFIGURAÇÕES DA API V9.2.7 (SALA DAS MÁQUINAS SINCRONIZADA)
+// 0. CONFIGURAÇÕES DA API V9.2.8 (SALA DAS MÁQUINAS E RBAC)
 // ========================================================================
 
 // ⚠️ ATENÇÃO: COLE AQUI O LINK DO SEU DEPLOY DO GOOGLE APPS SCRIPT (/exec)
@@ -214,7 +214,7 @@ async function carregarAvisosSMEB() {
 }
 
 // ========================================================================
-// 3. MÓDULO DE SEGURANÇA SAAS & RBAC (V9.2.6)
+// 3. MÓDULO DE SEGURANÇA SAAS & RBAC (V9.2.8)
 // ========================================================================
 const TOKEN_KEY = "MAESTRO_OP_TOKEN";
 const CACHE_LISTA_KEY = "MAESTRO_CACHE_FISCAL"; 
@@ -222,19 +222,28 @@ const CACHE_STATS_KEY = "MAESTRO_DASH_STATS_V9";
 const NIVEL_KEY = "MAESTRO_OP_NIVEL";
 let timeoutSessaoID = null;
 
+// V9.2.8: Correção visual. Se for só "OPERADOR", não deve ver os botões de Campo (Fiscalização, SOS)
 function aplicarFiltrosRBAC() {
     const nivelAtual = localStorage.getItem(NIVEL_KEY) || "FISCAL";
     const nivelUpper = nivelAtual.toUpperCase().trim();
     
+    const grupoCampo = document.getElementById('menu-grupo-campo');
     const grupoSec = document.getElementById('menu-grupo-secretaria');
     const grupoMod = document.getElementById('menu-grupo-moderador');
     
+    if (grupoCampo) grupoCampo.classList.remove('hidden'); // Padrão
     if (grupoSec) grupoSec.classList.add('hidden');
     if (grupoMod) grupoMod.classList.add('hidden');
+    
+    // Se for estritamente Operador de Secretaria, esconde as ferramentas de rua.
+    if (nivelUpper === "OPERADOR") {
+        if (grupoCampo) grupoCampo.classList.add('hidden');
+    }
     
     if (nivelUpper === "OPERADOR" || nivelUpper === "SUPERVISOR" || nivelUpper === "MODERADOR") {
         if (grupoSec) grupoSec.classList.remove('hidden');
     }
+    
     if (nivelUpper === "MODERADOR") {
         if (grupoMod) grupoMod.classList.remove('hidden');
     }
@@ -348,12 +357,11 @@ async function encerrarSessaoOperador(silencioso = false) {
 }
 
 // ========================================================================
-// 4. MESA DE AUDITORIA & GESTÃO DOCUMENTAL (V9.2.7 - WEB)
+// 4. MESA DE AUDITORIA & GESTÃO DOCUMENTAL
 // ========================================================================
 
 let arrayAlunosAuditoria = [];
 
-// V9.2.7: Função de formatação para corrigir "ARTur silva Do Nascimento"
 function formatarNomeProprio(nome) {
   if (!nome) return "Estudante";
   const preposicoes = ["da", "de", "do", "das", "dos", "e"];
@@ -442,7 +450,6 @@ function abrirModalRaioX(linhaBase) {
     document.getElementById('rx-notas').value = aluno.observacoes;
     document.getElementById('rx-linha-base').value = linhaBase;
     
-    // Gerar Botões de Anexo com o novo design (Chips) e Sem Laudo
     let anexoHtml = '';
     const docsMapa = {
         'FOTO': '🖼️ Foto',
@@ -555,7 +562,7 @@ function acionarIAParaEmail() {
 }
 
 // ========================================================================
-// 5. MÓDULO DO MODERADOR (SALA DAS MÁQUINAS V9.2.7)
+// 5. MÓDULO DO MODERADOR (SALA DAS MÁQUINAS V9.2.8)
 // ========================================================================
 
 function abrirPainelModerador() {
@@ -2285,8 +2292,6 @@ function desenharGraficos(graficos) {
 // ========================================================================
 // 12. UTILITÁRIOS GLOBAIS
 // ========================================================================
-
-// Removi a antiga formatarNome() porque a formatarNomeProprio() (mais robusta) foi adicionada na secção 4.
 
 let toastTimeout;
 function showToast(msg, type = 'info') {
