@@ -17,7 +17,7 @@
   <link id="apple-touch-icon" rel="apple-touch-icon" href="icone.png">
   <link rel="icon" type="image/png" href="icone.png">
   
-  <link rel="stylesheet" href="style.css?v=11.8">
+  <link rel="stylesheet" href="style.css?v=11.9">
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript" defer></script>
@@ -153,7 +153,7 @@
 
   <div id="modal-doc-viewer" class="splash-overlay hidden" style="z-index: 10000; background: rgba(0,0,0,0.95);">
     <div style="width: 95%; height: 90%; max-width: 800px; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; padding: 15px; background: #111; color: white; border-radius: 8px 8px 0 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #111; color: white; border-radius: 8px 8px 0 0;">
             <span id="doc-viewer-title" style="font-size: 15px; font-weight: bold; letter-spacing: 1px;">Documento Protegido</span>
             <button onclick="fecharModalDocViewer()" style="background: none; border: none; color: white; cursor: pointer; font-size: 20px;">❌</button>
         </div>
@@ -168,27 +168,27 @@
           
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 2px solid var(--border); padding-bottom: 10px;">
               <div>
-                  <h2 id="rx-nome" style="color: var(--primary); margin: 0 0 5px 0; font-size: 18px;">Nome do Aluno</h2>
-                  <span id="rx-status-badge" style="background: #eee; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">STATUS</span>
+                  <h2 id="rx-nome" style="color: var(--primary); margin: 0; font-size: 18px; display: inline-block; vertical-align: middle;">Nome do Aluno</h2>
+                  <span id="rx-status-badge" style="background: #eee; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; display: inline-block; vertical-align: middle; margin-left: 8px; margin-top: -3px;">STATUS</span>
               </div>
-              <button onclick="fecharModalRaioX()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
+              <button onclick="fecharModalRaioX()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999; margin-top: -5px;">&times;</button>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; font-size: 12px;">
               <div><span class="text-light" style="display:block; font-size:10px;">CPF</span><strong id="rx-cpf">---</strong></div>
               <div><span class="text-light" style="display:block; font-size:10px;">Matrícula</span><strong id="rx-matricula">---</strong></div>
               <div style="grid-column: span 2;"><span class="text-light" style="display:block; font-size:10px;">E-mail de Contacto</span><strong id="rx-email">---</strong></div>
-              <div style="grid-column: span 2; background: var(--secondary); padding: 8px; border-radius: 4px;">
+              <div style="grid-column: span 2; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 4px;">
                   <span class="text-light" style="display:block; font-size:10px;">Logística Solicitada</span>
-                  <strong id="rx-logistica" style="color: var(--accent);">---</strong>
+                  <strong id="rx-logistica" style="color: #3b82f6;">---</strong>
               </div>
           </div>
 
-          <div class="divider-text" style="margin: 10px 0;">ANEXOS DO ESTUDANTE</div>
+          <div class="divider-text" style="margin: 10px 0; color: #9ca3af;">ANEXOS DO ESTUDANTE</div>
           <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;" id="rx-documentos-grid">
               </div>
 
-          <div class="divider-text" style="margin: 10px 0;">PARECER E DECISÃO</div>
+          <div class="divider-text" style="margin: 10px 0; color: #9ca3af;">PARECER E DECISÃO</div>
           
           <label class="input-label">MUDAR STATUS PARA:</label>
           <select id="rx-novo-status" class="input-field" style="padding: 10px; height: auto;">
@@ -198,8 +198,8 @@
               <option value="CANCELADO">❌ CANCELADO (Rejeição Final)</option>
           </select>
 
-          <label class="input-label">NOTAS INTERNAS / MENSAGEM PARA O ALUNO</label>
-          <textarea id="rx-notas" class="input-field" rows="3" placeholder="Se reprovar, escreva o motivo aqui..."></textarea>
+          <label class="input-label">DIÁRIO DE BORDO (NOTAS PARA O ALUNO E SISTEMA)</label>
+          <textarea id="rx-notas" class="input-field" rows="4" placeholder="Se reprovar, escreva o motivo aqui para a IA usar de base..." style="background: #f1f5f9; font-family: monospace; font-size: 11px; line-height: 1.4; border-color: #cbd5e1;"></textarea>
 
           <div style="display: flex; gap: 10px; margin-top: 10px;">
               <button class="btn-solid" style="background: var(--accent); flex: 1; padding: 10px; font-size: 12px;" onclick="acionarIAParaEmail()">✨ Gerar E-mail IA</button>
@@ -545,9 +545,20 @@
                <p style="font-size: 11px; line-height: 1.3;">Controlo de automações e estado do servidor.</p>
             </div>
             
-            <div style="background: #f8f9fa; border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <div style="background: #f8f9fa; border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 20px; position: relative;">
+               <div id="loader-sincronizacao-motores" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 10; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                   <div class="loader" style="width: 25px; height: 25px; border-width: 3px;"></div>
+               </div>
+               
                <span class="label-sm" style="color: var(--primary);">ESTADO DOS MOTORES (CRON)</span>
                
+               <div class="switch-row">
+                 <span class="desc-xs">Sincronização Forms (ETL)</span>
+                 <label class="switch">
+                   <input type="checkbox" id="toggle-motor-etl" onchange="alterarMotor('ETL', this.checked)">
+                   <span class="slider"></span>
+                 </label>
+               </div>
                <div class="switch-row">
                  <span class="desc-xs">Auditoria Inteligente (OCR/IA)</span>
                  <label class="switch">
@@ -556,26 +567,27 @@
                  </label>
                </div>
                <div class="switch-row">
-                 <span class="desc-xs">Envio de E-mails / Emissão</span>
+                 <span class="desc-xs">Emissão de Carteiras (PDFs)</span>
+                 <label class="switch">
+                   <input type="checkbox" id="toggle-motor-docs" onchange="alterarMotor('DOCS', this.checked)">
+                   <span class="slider"></span>
+                 </label>
+               </div>
+               <div class="switch-row">
+                 <span class="desc-xs">Fila de Envio de E-mails</span>
                  <label class="switch">
                    <input type="checkbox" id="toggle-motor-email" onchange="alterarMotor('EMAIL', this.checked)">
                    <span class="slider"></span>
                  </label>
                </div>
-               <div class="switch-row">
-                 <span class="desc-xs">Relatório Semanal Logístico</span>
-                 <label class="switch">
-                   <input type="checkbox" id="toggle-motor-report" onchange="alterarMotor('REPORT', this.checked)">
-                   <span class="slider"></span>
-                 </label>
                </div>
-            </div>
 
             <div style="background: #fff; border: 1px dashed #ccc; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
                <span class="label-sm">AÇÕES FORÇADAS MANUAIS</span>
-               <button class="btn-solid" style="background: #4b5563; font-size: 12px; padding: 10px; margin-bottom: 8px;" onclick="forcarMotor('ETL')">🔄 Forçar Sincronização Forms</button>
-               <button class="btn-solid" style="background: #4b5563; font-size: 12px; padding: 10px; margin-bottom: 8px;" onclick="forcarMotor('OCR')">🔍 Forçar Auditoria OCR</button>
-               <button class="btn-solid" style="background: #4b5563; font-size: 12px; padding: 10px; margin-bottom: 0;" onclick="forcarMotor('EMAIL')">📧 Forçar Fila de E-mails</button>
+               <button class="btn-solid" style="background: #4b5563; font-size: 12px; padding: 10px; margin-bottom: 8px;" onclick="forcarMotor('ETL')">🔄 Sincronizar Forms</button>
+               <button class="btn-solid" style="background: #4b5563; font-size: 12px; padding: 10px; margin-bottom: 8px;" onclick="forcarMotor('OCR')">🔍 Auditar OCR</button>
+               <button class="btn-solid" style="background: #4b5563; font-size: 12px; padding: 10px; margin-bottom: 8px;" onclick="forcarMotor('DOCS')">📄 Emitir PDFs</button>
+               <button class="btn-solid" style="background: #4b5563; font-size: 12px; padding: 10px; margin-bottom: 0;" onclick="forcarMotor('EMAIL')">📧 Fila de E-mails</button>
             </div>
             
             <button class="btn-solid dark-bg" onclick="switchView('view-admin-hub')">Voltar ao Menu</button>
@@ -722,7 +734,7 @@
 
   <div id="toast"></div>
 
-  <script src="js_global.js?v=11.8"></script>
-  <script src="app.js?v=11.8"></script>
+  <script src="js_global.js?v=11.9"></script>
+  <script src="app.js?v=11.9"></script>
 </body>
 </html>
